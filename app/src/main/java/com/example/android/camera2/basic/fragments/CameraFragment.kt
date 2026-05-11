@@ -22,14 +22,17 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.ImageFormat
+import android.graphics.Rect
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CaptureFailure
 import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.CaptureResult
 import android.hardware.camera2.DngCreator
 import android.hardware.camera2.TotalCaptureResult
+import android.hardware.camera2.params.MeteringRectangle
 import android.media.Image
 import android.media.ImageReader
 import android.os.Build
@@ -37,7 +40,10 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
+import android.view.GestureDetector
 import android.view.LayoutInflater
+import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.View
@@ -50,6 +56,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.Navigation
 import androidx.navigation.fragment.navArgs
+import com.google.android.material.snackbar.Snackbar
 import com.reilandeubank.unprocess.utils.computeExifOrientation
 import com.reilandeubank.unprocess.utils.getPreviewOutputSize
 import com.reilandeubank.unprocess.utils.OrientationLiveData
@@ -62,6 +69,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.io.Closeable
 import java.io.File
 import java.io.FileOutputStream
@@ -80,49 +88,30 @@ import android.provider.MediaStore
 
 class CameraFragment : Fragment() {
 
-    /** Android ViewBinding */
     private var _fragmentCameraBinding: FragmentCameraBinding? = null
-
     private val fragmentCameraBinding get() = _fragmentCameraBinding!!
 
-    /** AndroidX navigation arguments */
     private val args: CameraFragmentArgs by navArgs()
 
-    /** Host's navigation controller */
     private val navController: NavController by lazy {
         Navigation.findNavController(requireActivity(), R.id.fragment_container)
     }
 
-    /** Detects, characterizes, and connects to a CameraDevice (used for all camera operations) */
     private val cameraManager: CameraManager by lazy {
         val context = requireContext().applicationContext
         context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
     }
 
-    /** [CameraCharacteristics] corresponding to the provided Camera ID */
     private val characteristics: CameraCharacteristics by lazy {
         cameraManager.getCameraCharacteristics(args.cameraId)
     }
 
-    /**
-     * RAW_SENSOR ImageReader used for DNG archival when the user selects RAW mode.
-     * Null when the device/mode doesn't use RAW capture.
-     */
     private var rawImageReader: ImageReader? = null
-
-    /**
-     * JPEG ImageReader used as the source for filmr processing.
-     * Always present; also used as the sole reader when not in RAW mode.
-     */
     private lateinit var jpegImageReader: ImageReader
 
-    /** [HandlerThread] where all camera operations run */
     private val cameraThread = HandlerThread("CameraThread").apply { start() }
-
-    /** [Handler] corresponding to [cameraThread] */
     private val cameraHandler = Handler(cameraThread.looper)
 
-    /** Performs recording animation of flashing screen */
     private val animationTask: Runnable by lazy {
         Runnable {
             fragmentCameraBinding.overlay.background = Color.argb(150, 255, 255, 255).toDrawable()
@@ -132,19 +121,16 @@ class CameraFragment : Fragment() {
         }
     }
 
-    /** [HandlerThread] where all buffer reading operations run */
     private val imageReaderThread = HandlerThread("imageReaderThread").apply { start() }
-
-    /** [Handler] corresponding to [imageReaderThread] */
     private val imageReaderHandler = Handler(imageReaderThread.looper)
 
-    /** The [CameraDevice] that will be opened in this fragment */
     private lateinit var camera: CameraDevice
-
-    /** Internal reference to the ongoing [CameraCaptureSession] configured with our parameters */
     private lateinit var session: CameraCaptureSession
+    private lateinit var previewRequestBuilder: CaptureRequest.Builder
 
-    /** Live data listener for changes in the device orientation relative to the camera */
+    private var currentZoom = 1.0f
+    private var zoomCropRect: Rect? = null
+
     private lateinit var relativeOrientation: OrientationLiveData
 
     override fun onCreateView(
@@ -164,29 +150,16 @@ class CameraFragment : Fragment() {
             v.translationY = (-insets.systemWindowInsetBottom).toFloat()
             insets.consumeSystemWindowInsets()
         }
-
-        // Navigate to settings when settings button is tapped
         fragmentCameraBinding.settingsButton.setOnClickListener {
             navController.navigate(R.id.action_camera_to_settings)
         }
-
         updateFilmInfoBar()
-
         fragmentCameraBinding.viewFinder.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
-
-            override fun surfaceChanged(
-                holder: SurfaceHolder,
-                format: Int,
-                width: Int,
-                height: Int
-            ) = Unit
-
+            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
             override fun surfaceCreated(holder: SurfaceHolder) {
                 val previewSize = getPreviewOutputSize(
-                    fragmentCameraBinding.viewFinder.display,
-                    characteristics,
-                    SurfaceHolder::class.java
+                    fragmentCameraBinding.viewFinder.display, characteristics, SurfaceHolder::class.java
                 )
                 Log.d(TAG, "View finder size: ${fragmentCameraBinding.viewFinder.width} x ${fragmentCameraBinding.viewFinder.height}")
                 Log.d(TAG, "Selected preview size: $previewSize")
@@ -194,7 +167,6 @@ class CameraFragment : Fragment() {
                 view.post { initializeCamera() }
             }
         })
-
         relativeOrientation = OrientationLiveData(requireContext(), characteristics).apply {
             observe(viewLifecycleOwner, Observer { orientation ->
                 Log.d(TAG, "Orientation changed: $orientation")
@@ -202,37 +174,23 @@ class CameraFragment : Fragment() {
         }
     }
 
-    /**
-     * Begin all camera operations in a coroutine in the main thread.
-     */
     private fun initializeCamera() = lifecycleScope.launch(Dispatchers.Main) {
         camera = openCamera(cameraManager, args.cameraId, cameraHandler)
 
-        val streamConfigMap = characteristics.get(
-            CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP
-        )!!
-
-        // Determine whether the device supports RAW_SENSOR and the user requested it.
+        val streamConfigMap = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
         val rawOutputSizes = streamConfigMap.getOutputSizes(ImageFormat.RAW_SENSOR)
         val useRaw = args.pixelFormat == ImageFormat.RAW_SENSOR && rawOutputSizes != null
 
-        // Always set up a JPEG reader for filmr processing.
-        val jpegSize = streamConfigMap.getOutputSizes(ImageFormat.JPEG)
-            .maxByOrNull { it.height * it.width }!!
+        val jpegSize = streamConfigMap.getOutputSizes(ImageFormat.JPEG).maxByOrNull { it.height * it.width }!!
         Log.d(TAG, "JPEG reader size: $jpegSize")
-        jpegImageReader = ImageReader.newInstance(
-            jpegSize.width, jpegSize.height, ImageFormat.JPEG, IMAGE_BUFFER_SIZE
-        )
+        jpegImageReader = ImageReader.newInstance(jpegSize.width, jpegSize.height, ImageFormat.JPEG, IMAGE_BUFFER_SIZE)
 
-        // Optionally set up a RAW reader when the user selected RAW mode and the device supports it.
         if (useRaw) {
             val rawSize = rawOutputSizes!!.maxByOrNull { it.height * it.width }!!
             Log.d(TAG, "RAW reader size: $rawSize")
-            rawImageReader = ImageReader.newInstance(
-                rawSize.width, rawSize.height, ImageFormat.RAW_SENSOR, IMAGE_BUFFER_SIZE
-            )
+            rawImageReader = ImageReader.newInstance(rawSize.width, rawSize.height, ImageFormat.RAW_SENSOR, IMAGE_BUFFER_SIZE)
         } else if (args.pixelFormat == ImageFormat.RAW_SENSOR) {
-            Log.w(TAG, "RAW_SENSOR requested but not supported by this device — falling back to JPEG only")
+            Log.w(TAG, "RAW_SENSOR requested but not supported — falling back to JPEG only")
         }
 
         val targets = mutableListOf<Surface>().apply {
@@ -243,48 +201,145 @@ class CameraFragment : Fragment() {
 
         session = createCaptureSession(camera, targets, cameraHandler)
 
-        val captureRequest = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-            .apply { addTarget(fragmentCameraBinding.viewFinder.holder.surface) }
-        session.setRepeatingRequest(captureRequest.build(), null, cameraHandler)
+        previewRequestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+            addTarget(fragmentCameraBinding.viewFinder.holder.surface)
+        }
+        session.setRepeatingRequest(previewRequestBuilder.build(), null, cameraHandler)
+
+        setupTouchInteractions()
+
+        if (!FilmrEngine.isAvailable && !filmrUnavailableWarningShown) {
+            filmrUnavailableWarningShown = true
+            showSnackbar("Film simulation engine unavailable — photos will be saved without film processing")
+        }
 
         fragmentCameraBinding.captureButton.setOnClickListener {
             it.isEnabled = false
+            fragmentCameraBinding.processingOverlay.visibility = View.VISIBLE
             lifecycleScope.launch(Dispatchers.IO) {
-                takePhoto().use { result ->
-                    Log.d(TAG, "Result received: $result")
-                    val output = saveResult(result)
-                    Log.d(TAG, "Image saved: ${output.absolutePath}")
-                    lifecycleScope.launch(Dispatchers.Main) {
-                        navController.navigate(
-                            CameraFragmentDirections
-                                .actionCameraToJpegViewer(output.absolutePath)
-                                .setOrientation(result.orientation)
-                                .setDepth(
-                                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                                            result.format == ImageFormat.DEPTH_JPEG
-                                )
-                        )
+                try {
+                    takePhoto().use { result ->
+                        Log.d(TAG, "Result received: $result")
+                        val output = saveResult(result)
+                        Log.d(TAG, "Image saved: ${output.absolutePath}")
+                        withContext(Dispatchers.Main) {
+                            navController.navigate(
+                                CameraFragmentDirections
+                                    .actionCameraToJpegViewer(output.absolutePath)
+                                    .setOrientation(result.orientation)
+                                    .setDepth(
+                                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                                                result.format == ImageFormat.DEPTH_JPEG
+                                    )
+                            )
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Capture failed", e)
+                    withContext(Dispatchers.Main) {
+                        fragmentCameraBinding.processingOverlay.visibility = View.GONE
+                        it.isEnabled = true
                     }
                 }
-                it.post { it.isEnabled = true }
             }
         }
     }
 
+    private fun showSnackbar(message: String) {
+        Snackbar.make(fragmentCameraBinding.root, message, Snackbar.LENGTH_LONG).show()
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun setupTouchInteractions() {
+        val gestureDetector = GestureDetector(requireContext(),
+            object : GestureDetector.SimpleOnGestureListener() {
+                override fun onSingleTapUp(e: MotionEvent): Boolean {
+                    setFocusPoint(e.x, e.y)
+                    return true
+                }
+            })
+
+        val scaleDetector = ScaleGestureDetector(requireContext(),
+            object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                override fun onScale(detector: ScaleGestureDetector): Boolean {
+                    val maxZoom = characteristics
+                        .get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM) ?: 1f
+                    currentZoom = (currentZoom * detector.scaleFactor).coerceIn(1f, maxZoom)
+                    updateZoom()
+                    return true
+                }
+            })
+
+        fragmentCameraBinding.viewFinder.setOnTouchListener { _, event ->
+            scaleDetector.onTouchEvent(event)
+            if (!scaleDetector.isInProgress) gestureDetector.onTouchEvent(event)
+            true
+        }
+    }
+
+    private fun setFocusPoint(x: Float, y: Float) {
+        val sensorRect = characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE) ?: return
+        val viewW = fragmentCameraBinding.viewFinder.width.toFloat().coerceAtLeast(1f)
+        val viewH = fragmentCameraBinding.viewFinder.height.toFloat().coerceAtLeast(1f)
+        val sensorX = (x / viewW * sensorRect.width()).toInt().coerceIn(0, sensorRect.width() - 1)
+        val sensorY = (y / viewH * sensorRect.height()).toInt().coerceIn(0, sensorRect.height() - 1)
+        val halfSize = 150
+        val left   = maxOf(0, sensorX - halfSize)
+        val top    = maxOf(0, sensorY - halfSize)
+        val right  = minOf(sensorRect.width(),  sensorX + halfSize)
+        val bottom = minOf(sensorRect.height(), sensorY + halfSize)
+        val focusRect = MeteringRectangle(left, top, right - left, bottom - top,
+            MeteringRectangle.METERING_WEIGHT_MAX)
+
+        previewRequestBuilder.apply {
+            set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO)
+            set(CaptureRequest.CONTROL_AF_REGIONS, arrayOf(focusRect))
+            set(CaptureRequest.CONTROL_AF_TRIGGER, CaptureRequest.CONTROL_AF_TRIGGER_START)
+        }
+        session.capture(previewRequestBuilder.build(), null, cameraHandler)
+        previewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CaptureRequest.CONTROL_AF_TRIGGER_IDLE)
+        session.setRepeatingRequest(previewRequestBuilder.build(), null, cameraHandler)
+
+        showFocusRingAt(x, y)
+    }
+
+    private fun updateZoom() {
+        val sensorRect = characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE) ?: return
+        val cropW = (sensorRect.width()  / currentZoom).toInt()
+        val cropH = (sensorRect.height() / currentZoom).toInt()
+        val cropX = (sensorRect.width()  - cropW) / 2
+        val cropY = (sensorRect.height() - cropH) / 2
+        zoomCropRect = Rect(cropX, cropY, cropX + cropW, cropY + cropH)
+        previewRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomCropRect)
+        session.setRepeatingRequest(previewRequestBuilder.build(), null, cameraHandler)
+    }
+
+    private fun showFocusRingAt(x: Float, y: Float) {
+        val ring = fragmentCameraBinding.focusRing
+        val ringW = ring.width.takeIf { it > 0 } ?: 128
+        val ringH = ring.height.takeIf { it > 0 } ?: 128
+        ring.x = x - ringW / 2f
+        ring.y = y - ringH / 2f
+        ring.alpha = 1f
+        ring.visibility = View.VISIBLE
+        ring.animate()
+            .alpha(0f)
+            .setStartDelay(400)
+            .setDuration(200)
+            .withEndAction { ring.visibility = View.GONE }
+            .start()
+    }
+
     @SuppressLint("MissingPermission")
     private suspend fun openCamera(
-        manager: CameraManager,
-        cameraId: String,
-        handler: Handler? = null
+        manager: CameraManager, cameraId: String, handler: Handler? = null
     ): CameraDevice = suspendCancellableCoroutine { cont ->
         manager.openCamera(cameraId, object : CameraDevice.StateCallback() {
             override fun onOpened(device: CameraDevice) = cont.resume(device)
-
             override fun onDisconnected(device: CameraDevice) {
                 Log.w(TAG, "Camera $cameraId has been disconnected")
                 requireActivity().finish()
             }
-
             override fun onError(device: CameraDevice, error: Int) {
                 val msg = when (error) {
                     ERROR_CAMERA_DEVICE -> "Fatal (device)"
@@ -302,9 +357,7 @@ class CameraFragment : Fragment() {
     }
 
     private suspend fun createCaptureSession(
-        device: CameraDevice,
-        targets: List<Surface>,
-        handler: Handler? = null
+        device: CameraDevice, targets: List<Surface>, handler: Handler? = null
     ): CameraCaptureSession = suspendCoroutine { cont ->
         device.createCaptureSession(targets, object : CameraCaptureSession.StateCallback() {
             override fun onConfigured(session: CameraCaptureSession) = cont.resume(session)
@@ -320,7 +373,6 @@ class CameraFragment : Fragment() {
         val rawReader = rawImageReader
         val isRawCapture = rawReader != null
 
-        // Drain any stale images from the readers before starting capture.
         @Suppress("ControlFlowWithEmptyBody")
         while (jpegImageReader.acquireNextImage() != null) {}
         if (isRawCapture) {
@@ -328,11 +380,9 @@ class CameraFragment : Fragment() {
             while (rawReader!!.acquireNextImage() != null) {}
         }
 
-        // Use CompletableDeferred to receive each image independently.
         val jpegDeferred = CompletableDeferred<Image>()
         val rawDeferred = if (isRawCapture) CompletableDeferred<Image>() else null
 
-        // Register listeners BEFORE firing the capture request.
         jpegImageReader.setOnImageAvailableListener({ reader ->
             val image = reader.acquireNextImage()
             if (image != null) {
@@ -351,33 +401,28 @@ class CameraFragment : Fragment() {
             }, imageReaderHandler)
         }
 
-        // Build the capture request targeting both surfaces.
         val captureRequest = session.device.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
             .apply {
                 addTarget(jpegImageReader.surface)
                 if (isRawCapture) addTarget(rawReader!!.surface)
+                zoomCropRect?.let { set(CaptureRequest.SCALER_CROP_REGION, it) }
             }
 
         session.capture(captureRequest.build(), object : CameraCaptureSession.CaptureCallback() {
             override fun onCaptureStarted(
-                session: CameraCaptureSession,
-                request: CaptureRequest,
-                timestamp: Long,
-                frameNumber: Long
+                session: CameraCaptureSession, request: CaptureRequest,
+                timestamp: Long, frameNumber: Long
             ) {
                 super.onCaptureStarted(session, request, timestamp, frameNumber)
                 fragmentCameraBinding.viewFinder.post(animationTask)
             }
 
             override fun onCaptureCompleted(
-                session: CameraCaptureSession,
-                request: CaptureRequest,
-                result: TotalCaptureResult
+                session: CameraCaptureSession, request: CaptureRequest, result: TotalCaptureResult
             ) {
                 super.onCaptureCompleted(session, request, result)
                 Log.d(TAG, "Capture completed: ${result.get(CaptureResult.SENSOR_TIMESTAMP)}")
 
-                // Set a timeout — if images don't arrive within the window, fail the coroutine.
                 val exc = TimeoutException("Image dequeuing took too long")
                 val timeoutRunnable = Runnable { cont.resumeWithException(exc) }
                 imageReaderHandler.postDelayed(timeoutRunnable, IMAGE_CAPTURE_TIMEOUT_MILLIS)
@@ -387,23 +432,15 @@ class CameraFragment : Fragment() {
                     try {
                         val jpegImage = jpegDeferred.await()
                         val rawImage = rawDeferred?.await()
-
                         imageReaderHandler.removeCallbacks(timeoutRunnable)
-
-                        // Clear listeners so they don't fire for future captures.
                         jpegImageReader.setOnImageAvailableListener(null, null)
                         rawReader?.setOnImageAvailableListener(null, null)
-
                         val rotation = relativeOrientation.value ?: 0
                         val mirrored = characteristics.get(CameraCharacteristics.LENS_FACING) ==
                                 CameraCharacteristics.LENS_FACING_FRONT
                         val exifOrientation = computeExifOrientation(rotation, mirrored)
-
-                        // format reflects the capture mode for callers (RAW_SENSOR when dual, JPEG otherwise)
                         val format = if (isRawCapture) ImageFormat.RAW_SENSOR else ImageFormat.JPEG
-                        cont.resume(
-                            CombinedCaptureResult(jpegImage, rawImage, result, exifOrientation, format)
-                        )
+                        cont.resume(CombinedCaptureResult(jpegImage, rawImage, result, exifOrientation, format))
                     } catch (e: Exception) {
                         imageReaderHandler.removeCallbacks(timeoutRunnable)
                         jpegImageReader.setOnImageAvailableListener(null, null)
@@ -412,128 +449,132 @@ class CameraFragment : Fragment() {
                     }
                 }
             }
+
+            override fun onCaptureFailed(
+                session: CameraCaptureSession, request: CaptureRequest, failure: CaptureFailure
+            ) {
+                super.onCaptureFailed(session, request, failure)
+                val exc = IOException("Capture failed: reason=${failure.reason}")
+                Log.e(TAG, exc.message, exc)
+                jpegImageReader.setOnImageAvailableListener(null, null)
+                rawReader?.setOnImageAvailableListener(null, null)
+                if (jpegDeferred.isActive) jpegDeferred.completeExceptionally(exc)
+                if (rawDeferred?.isActive == true) rawDeferred.completeExceptionally(exc)
+            }
         }, cameraHandler)
     }
 
-    private suspend fun saveResult(result: CombinedCaptureResult): File = suspendCoroutine { cont ->
-        when (result.format) {
+    private fun depthModelPath(config: FilmrConfig): String {
+        val modelFile = File(requireContext().filesDir, "models/${FilmrEngine.DEPTH_MODEL_FILENAME}")
+        return if (FilmrEngine.isDepthEstimationSupported && modelFile.exists() &&
+                   (config.dofAmount > 0f || config.objectMotionAmount > 0f))
+                   modelFile.absolutePath else ""
+    }
+
+    private suspend fun saveResult(result: CombinedCaptureResult): File {
+        val prefs = requireContext()
+            .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
+        val filmrConfig = FilmrConfig.load(prefs)
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+
+        return when (result.format) {
             ImageFormat.RAW_SENSOR -> {
-                // rawImage is guaranteed non-null when format == RAW_SENSOR (see takePhoto).
                 val rawImage = result.rawImage!!
                 val dngCreator = DngCreator(characteristics, result.metadata)
                 try {
-                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-
-                    // When the user chose "Save as RAW", persist the original DNG for archival.
-                    if (!args.convertToJpeg) {
-                        dngCreator.setOrientation(result.orientation)
-                        saveDng(dngCreator, rawImage, "RAW_$timestamp.dng")
-                        Log.d(TAG, "Original DNG saved")
-                    }
-
-                    // Preferred path: feed DNG bytes to filmr JNI for linear-Bayer simulation.
-                    // processFromDng demosaics the RAW data before filmr processes it, which is
-                    // physically correct (filmr models film chemistry in linear light).
-                    val prefs = requireContext()
-                        .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
-                    val filmrConfig = FilmrConfig.load(prefs)
-
                     dngCreator.setOrientation(result.orientation)
                     val dngStream = java.io.ByteArrayOutputStream()
                     dngCreator.writeImage(dngStream, rawImage)
+                    val dngBytes = dngStream.toByteArray()
 
-                    var bitmap: Bitmap? = FilmrEngine.processFromDng(dngStream.toByteArray(), filmrConfig)
-                    val filmrAlreadyApplied = (bitmap != null)
+                    if (!args.convertToJpeg) {
+                        saveDngBytes(dngBytes, "RAW_$timestamp.dng")
+                        Log.d(TAG, "Original DNG saved")
+                    }
 
-                    if (bitmap == null) {
-                        // Fallback: decode JPEG companion when libfilmr is absent or DNG decode fails.
+                    val modelPath = depthModelPath(filmrConfig)
+                    var bitmap: Bitmap? = FilmrEngine.processFromDng(dngBytes, filmrConfig, modelPath)
+                    val filmrAlreadyApplied = bitmap != null
+
+                    if (!filmrAlreadyApplied) {
                         Log.d(TAG, "processFromDng unavailable, falling back to JPEG companion")
+                        withContext(Dispatchers.Main) {
+                            showSnackbar("Film simulation unavailable — saved original")
+                        }
                         val jpegPlane = result.image.planes[0]
                         val jpegBytes = ByteArray(jpegPlane.buffer.remaining())
                         jpegPlane.buffer.get(jpegBytes)
                         bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
                     }
 
-                    if (bitmap == null) {
-                        cont.resumeWithException(IOException("Failed to decode image from both DNG and JPEG paths"))
-                        return@suspendCoroutine
+                    val decoded = bitmap
+                        ?: throw IOException("Failed to decode image from both DNG and JPEG paths")
+
+                    val finalBitmap = if (!filmrAlreadyApplied) {
+                        val (processed, success) = applyFilmrProcessing(decoded, filmrConfig)
+                        if (!success && FilmrEngine.isAvailable) {
+                            withContext(Dispatchers.Main) {
+                                showSnackbar("Film simulation failed — saved original")
+                            }
+                        }
+                        if (processed !== decoded) decoded.recycle()
+                        processed
+                    } else {
+                        decoded
                     }
 
-                    // Apply filmr only on the JPEG fallback — the DNG path already ran it.
-                    if (!filmrAlreadyApplied) bitmap = applyFilmrProcessing(bitmap)
-
-                    val savedFile = saveJpeg(bitmap, "IMG_$timestamp.jpg", result.orientation)
-                    bitmap.recycle()
-                    cont.resume(savedFile)
-
-                } catch (exc: IOException) {
-                    Log.e(TAG, "Failed to save image", exc)
-                    cont.resumeWithException(exc)
+                    val savedFile = saveJpeg(finalBitmap, "IMG_$timestamp.jpg", result.orientation, filmrConfig.jpegQuality)
+                    finalBitmap.recycle()
+                    savedFile
                 } finally {
                     dngCreator.close()
                 }
             }
 
             ImageFormat.JPEG -> {
-                // Pure JPEG mode (no RAW reader configured).
-                try {
-                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-                    val jpegPlane = result.image.planes[0]
-                    val jpegBytes = ByteArray(jpegPlane.buffer.remaining())
-                    jpegPlane.buffer.get(jpegBytes)
-                    var bitmap: Bitmap? = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
+                val jpegPlane = result.image.planes[0]
+                val jpegBytes = ByteArray(jpegPlane.buffer.remaining())
+                jpegPlane.buffer.get(jpegBytes)
+                val rawBitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
+                    ?: throw IOException("Failed to decode JPEG image")
 
-                    if (bitmap == null) {
-                        cont.resumeWithException(IOException("Failed to decode JPEG image"))
-                        return@suspendCoroutine
+                val (finalBitmap, success) = applyFilmrProcessing(rawBitmap, filmrConfig)
+                if (!success && FilmrEngine.isAvailable) {
+                    withContext(Dispatchers.Main) {
+                        showSnackbar("Film simulation failed — saved original")
                     }
-
-                    bitmap = applyFilmrProcessing(bitmap)
-                    val savedFile = saveJpeg(bitmap, "IMG_$timestamp.jpg", result.orientation)
-                    bitmap.recycle()
-                    cont.resume(savedFile)
-
-                } catch (exc: IOException) {
-                    Log.e(TAG, "Failed to save image", exc)
-                    cont.resumeWithException(exc)
                 }
+                if (finalBitmap !== rawBitmap) rawBitmap.recycle()
+                val savedFile = saveJpeg(finalBitmap, "IMG_$timestamp.jpg", result.orientation, filmrConfig.jpegQuality)
+                finalBitmap.recycle()
+                savedFile
             }
 
-            else -> {
-                val exc = RuntimeException("Unknown image format: ${result.format}")
-                Log.e(TAG, exc.message, exc)
-                cont.resumeWithException(exc)
-            }
+            else -> throw RuntimeException("Unknown image format: ${result.format}")
         }
     }
 
-    /** Update the bottom film-info bar with the currently saved preset/style. */
     private fun updateFilmInfoBar() {
         val prefs = requireContext()
             .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
         val config = FilmrConfig.load(prefs)
-        val info = "${config.preset.manufacturer.uppercase()} · ${config.preset.displayName}"
-        fragmentCameraBinding.filmInfoText.text = info
+        fragmentCameraBinding.filmInfoText.text =
+            "${config.preset.manufacturer.uppercase()} · ${config.preset.displayName}"
     }
 
-    /** Apply the filmr film simulation engine to [bitmap]. Returns original on any failure. */
-    private fun applyFilmrProcessing(bitmap: Bitmap): Bitmap {
-        if (!FilmrEngine.isAvailable) return bitmap
+    private fun applyFilmrProcessing(bitmap: Bitmap, config: FilmrConfig? = null): Pair<Bitmap, Boolean> {
+        if (!FilmrEngine.isAvailable) return Pair(bitmap, false)
         val prefs = requireContext()
             .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
-        val config = FilmrConfig.load(prefs)
-        Log.d(TAG, "Applying filmr: preset=${config.preset.key}, style=${config.styleKey()}")
-        val modelFile = java.io.File(requireContext().filesDir, "models/${FilmrEngine.DEPTH_MODEL_FILENAME}")
-        return if (FilmrEngine.isDepthEstimationSupported && modelFile.exists() &&
-                   (config.dofAmount > 0f || config.objectMotionAmount > 0f)) {
-            Log.d(TAG, "Using depth-aware filmr processing")
-            FilmrEngine.processWithDepth(bitmap, config, modelFile.absolutePath)
-        } else {
-            FilmrEngine.process(bitmap, config)
-        }
+        val filmrConfig = config ?: FilmrConfig.load(prefs)
+        Log.d(TAG, "Applying filmr: preset=${filmrConfig.preset.key}, style=${filmrConfig.styleKey()}")
+        val modelPath = depthModelPath(filmrConfig)
+        val (result, error) = FilmrEngine.processChecked(bitmap, filmrConfig, modelPath)
+        if (error != null) Log.e(TAG, "filmr processing error: $error")
+        return Pair(result, error == null)
     }
 
-    private fun saveDng(dngCreator: DngCreator, image: Image, filename: String) {
+    private fun saveDngBytes(dngBytes: ByteArray, filename: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
@@ -543,17 +584,16 @@ class CameraFragment : Fragment() {
             val resolver = requireContext().contentResolver
             val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
                 ?: throw IOException("Failed to create MediaStore DNG entry")
-            resolver.openOutputStream(uri)?.use { dngCreator.writeImage(it, image) }
+            resolver.openOutputStream(uri)?.use { it.write(dngBytes) }
         } else {
             val folder = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
-                "Camera"
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "Camera"
             ).apply { if (!exists()) mkdirs() }
-            FileOutputStream(File(folder, filename)).use { dngCreator.writeImage(it, image) }
+            FileOutputStream(File(folder, filename)).use { it.write(dngBytes) }
         }
     }
 
-    private fun saveJpeg(bitmap: Bitmap, filename: String, orientation: Int): File {
+    private fun saveJpeg(bitmap: Bitmap, filename: String, orientation: Int, quality: Int = 95): File {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
@@ -563,22 +603,20 @@ class CameraFragment : Fragment() {
             val resolver = requireContext().contentResolver
             val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
                 ?: throw IOException("Failed to create MediaStore entry")
-
-            resolver.openOutputStream(uri)?.use { bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it) }
+            resolver.openOutputStream(uri)?.use { bitmap.compress(Bitmap.CompressFormat.JPEG, quality, it) }
             resolver.openFileDescriptor(uri, "rw")?.use { pfd ->
                 ExifInterface(pfd.fileDescriptor).apply {
                     setAttribute(ExifInterface.TAG_ORIENTATION, orientation.toString())
                     saveAttributes()
                 }
             }
-
             val dcim = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
             File(File(dcim, "Camera"), filename)
         } else {
             val dcim = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
             val folder = File(dcim, "Camera").apply { if (!exists()) mkdirs() }
             val file = File(folder, filename)
-            FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it) }
+            FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.JPEG, quality, it) }
             ExifInterface(file.absolutePath).apply {
                 setAttribute(ExifInterface.TAG_ORIENTATION, orientation.toString())
                 saveAttributes()
@@ -589,7 +627,6 @@ class CameraFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // Refresh in case user changed preset in settings
         if (_fragmentCameraBinding != null) updateFilmInfoBar()
     }
 
@@ -615,16 +652,8 @@ class CameraFragment : Fragment() {
         private val TAG = CameraFragment::class.java.simpleName
         private const val IMAGE_BUFFER_SIZE: Int = 3
         private const val IMAGE_CAPTURE_TIMEOUT_MILLIS: Long = 5000
+        private var filmrUnavailableWarningShown = false
 
-        /**
-         * Holds the result of a still capture.
-         *
-         * @param image       The JPEG image (always present; used for filmr processing).
-         * @param rawImage    The RAW_SENSOR image (non-null only in dual-stream RAW mode).
-         * @param metadata    The [CaptureResult] from the camera.
-         * @param orientation The computed EXIF orientation.
-         * @param format      [ImageFormat.RAW_SENSOR] when dual-stream, [ImageFormat.JPEG] otherwise.
-         */
         data class CombinedCaptureResult(
             val image: Image,
             val rawImage: Image?,

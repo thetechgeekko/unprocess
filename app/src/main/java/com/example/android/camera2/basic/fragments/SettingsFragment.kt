@@ -25,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.net.HttpURLConnection
 import java.net.URL
 
 /**
@@ -200,7 +201,7 @@ class SettingsFragment : Fragment() {
             config = config.copy(saturation = v)
             "%.2f".format(v)
         }
-        // object_motion_amount  0.0 – 1.0  (depth-based, needs depth model)
+        // object_motion_amount  0.0 – 1.0
         setupSeekBar(binding.seekObjectMotion, binding.labelObjectMotion, 0, 100) { raw ->
             val v = raw / 100f
             config = config.copy(objectMotionAmount = v)
@@ -236,9 +237,14 @@ class SettingsFragment : Fragment() {
             config = config.copy(rotationalBlurAmount = v)
             "%.2f".format(v)
         }
+        // jpeg_quality  60 – 100  (seekbar 0-40, +60)
+        setupSeekBar(binding.seekJpegQuality, binding.labelJpegQuality, 0, 40) { raw ->
+            val v = raw + 60
+            config = config.copy(jpegQuality = v)
+            "$v"
+        }
     }
 
-    // label shows only the value (name is a separate static TextView in the layout)
     private fun setupSeekBar(
         seekBar: SeekBar,
         valueLabel: TextView,
@@ -284,18 +290,52 @@ class SettingsFragment : Fragment() {
         refreshDepthModelStatus()
         binding.btnDownloadDepthModel.setOnClickListener {
             it.isEnabled = false
-            binding.labelDepthModelStatus.text = "Downloading…"
+            binding.progressDepthModel.progress = 0
+            binding.progressDepthModel.visibility = View.VISIBLE
+            binding.labelDepthModelStatus.text = "Connecting…"
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     val dest = depthModelFile().also { f -> f.parentFile?.mkdirs() }
                     val tmp = File(dest.parent, dest.name + ".tmp")
-                    URL(FilmrEngine.DEPTH_MODEL_URL).openStream().use { input ->
-                        tmp.outputStream().use { output -> input.copyTo(output) }
+
+                    val conn = URL(FilmrEngine.DEPTH_MODEL_URL).openConnection() as HttpURLConnection
+                    conn.connect()
+                    val totalBytes = conn.contentLengthLong
+                        .takeIf { len -> len > 0L } ?: FilmrEngine.DEPTH_MODEL_SIZE_BYTES
+                    val totalMB = totalBytes / 1_048_576f
+
+                    val buffer = ByteArray(16 * 1024)
+                    var downloadedBytes = 0L
+                    var lastReportedMB = -1L
+
+                    conn.inputStream.use { input ->
+                        tmp.outputStream().use { output ->
+                            while (true) {
+                                val n = input.read(buffer)
+                                if (n == -1) break
+                                output.write(buffer, 0, n)
+                                downloadedBytes += n
+                                val downloadedMB = downloadedBytes / 1_048_576
+                                if (downloadedMB > lastReportedMB) {
+                                    lastReportedMB = downloadedMB
+                                    val pct = ((downloadedBytes.toFloat() / totalBytes) * 100).toInt()
+                                    withContext(Dispatchers.Main) {
+                                        binding.labelDepthModelStatus.text =
+                                            "%.0f / %.0f MB".format(downloadedMB.toFloat(), totalMB)
+                                        binding.progressDepthModel.progress = pct
+                                    }
+                                }
+                            }
+                        }
                     }
                     tmp.renameTo(dest)
-                    withContext(Dispatchers.Main) { refreshDepthModelStatus() }
+                    withContext(Dispatchers.Main) {
+                        binding.progressDepthModel.visibility = View.GONE
+                        refreshDepthModelStatus()
+                    }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
+                        binding.progressDepthModel.visibility = View.GONE
                         binding.labelDepthModelStatus.text = "Download failed: ${e.message}"
                         binding.btnDownloadDepthModel.isEnabled = true
                     }
@@ -305,6 +345,7 @@ class SettingsFragment : Fragment() {
     }
 
     private fun refreshDepthModelStatus() {
+        binding.progressDepthModel.visibility = View.GONE
         val f = depthModelFile()
         if (!FilmrEngine.isDepthEstimationSupported) {
             binding.labelDepthModelStatus.text =
@@ -358,7 +399,6 @@ class SettingsFragment : Fragment() {
             }
         )
 
-        // Sliders — convert float value → seekbar progress
         binding.seekExposure.progress = ((config.exposureTime * 100).toInt() - 10).coerceIn(0, 390)
         binding.seekWbStrength.progress = (config.whiteBalanceStrength * 100).toInt().coerceIn(0, 100)
         binding.seekWarmth.progress = ((config.warmth * 100) + 100).toInt().coerceIn(0, 200)
@@ -369,8 +409,8 @@ class SettingsFragment : Fragment() {
         binding.seekDofFocus.progress = (config.dofFocus * 100).toInt().coerceIn(0, 100)
         binding.seekDofSwirl.progress = (config.dofSwirl * 100).toInt().coerceIn(0, 100)
         binding.seekRotBlur.progress = (config.rotationalBlurAmount * 100).toInt().coerceIn(0, 200)
+        binding.seekJpegQuality.progress = (config.jpegQuality - 60).coerceIn(0, 40)
 
-        // Update value labels (names are static TextViews in the layout)
         binding.labelExposure.text = "%.2f s".format(config.exposureTime)
         binding.labelWbStrength.text = "%.2f".format(config.whiteBalanceStrength)
         binding.labelWarmth.text = "%.2f".format(config.warmth)
@@ -381,8 +421,8 @@ class SettingsFragment : Fragment() {
         binding.labelDofFocus.text = "%.2f".format(config.dofFocus)
         binding.labelDofSwirl.text = "%.2f".format(config.dofSwirl)
         binding.labelRotBlur.text = "%.2f".format(config.rotationalBlurAmount)
+        binding.labelJpegQuality.text = "${config.jpegQuality}"
 
-        // Switches
         binding.switchGrain.isChecked = config.enableGrain
         binding.switchAutoLevels.isChecked = config.autoLevels
         binding.switchLightLeak.isChecked = config.lightLeakEnabled

@@ -16,6 +16,15 @@
         android:layout_height="match_parent"
         android:foreground="@android:color/transparent" />
 
+    <!-- Tap-to-focus ring: positioned programmatically at the touch point -->
+    <ImageView
+        android:id="@+id/focus_ring"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:src="@drawable/ic_focus_ring"
+        android:visibility="gone"
+        android:contentDescription="@null" />
+
     <!-- Settings button — top-right, FILMr style with amber accent ring -->
     <ImageButton
         android:id="@+id/settings_button"
@@ -60,6 +69,31 @@
             android:scaleType="fitCenter"
             android:background="@drawable/ic_shutter"
             android:contentDescription="@string/capture" />
+
+    </LinearLayout>
+
+    <!-- Processing overlay: shown while capture + filmr simulation are running -->
+    <LinearLayout
+        android:id="@+id/processing_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#CC000000"
+        android:visibility="gone">
+
+        <ProgressBar
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:indeterminate="true" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Processing…"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:layout_marginTop="12dp" />
 
     </LinearLayout>
 

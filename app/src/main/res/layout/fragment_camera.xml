@@ -30,6 +30,20 @@
         android:layout_height="match_parent"
         android:foreground="@android:color/transparent" />
 
+    <!-- Settings button — top-right corner -->
+    <ImageButton
+        android:id="@+id/settings_button"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="16dp"
+        android:scaleType="center"
+        android:src="@android:drawable/ic_menu_manage"
+        android:background="#66000000"
+        android:tint="@android:color/white"
+        android:contentDescription="@string/settings" />
+
+    <!-- Capture button — bottom center -->
     <ImageButton
         android:id="@+id/capture_button"
         android:layout_width="96dp"

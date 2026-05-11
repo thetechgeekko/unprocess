@@ -1,0 +1,416 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@android:color/black">
+
+    <!-- Toolbar -->
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/settings_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="#1A1A1A"
+        android:elevation="4dp"
+        app:title="Filmr Settings"
+        app:titleTextColor="@android:color/white"
+        app:navigationIcon="@drawable/ic_back" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- ============================================================ -->
+            <!-- FILM STOCK -->
+            <!-- ============================================================ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="FILM STOCK"
+                android:textColor="#888888"
+                android:textSize="11sp"
+                android:letterSpacing="0.15"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Preset"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+
+            <Spinner
+                android:id="@+id/spinner_preset"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:backgroundTint="@android:color/white"
+                android:popupBackground="#2A2A2A" />
+
+            <View android:layout_width="match_parent" android:layout_height="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Film Style"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+
+            <Spinner
+                android:id="@+id/spinner_style"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:backgroundTint="@android:color/white"
+                android:popupBackground="#2A2A2A" />
+
+            <!-- ============================================================ -->
+            <!-- SIMULATION -->
+            <!-- ============================================================ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="SIMULATION"
+                android:textColor="#888888"
+                android:textSize="11sp"
+                android:letterSpacing="0.15"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Mode"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+
+            <Spinner
+                android:id="@+id/spinner_sim_mode"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:backgroundTint="@android:color/white"
+                android:popupBackground="#2A2A2A" />
+
+            <View android:layout_width="match_parent" android:layout_height="12dp" />
+
+            <!-- Exposure -->
+            <TextView
+                android:id="@+id/label_exposure"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Exposure Time: 1.00 s"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+            <SeekBar
+                android:id="@+id/seek_exposure"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="390"
+                android:progress="90"
+                android:progressTint="#E0A840"
+                android:thumbTint="#E0A840" />
+
+            <View android:layout_width="match_parent" android:layout_height="8dp" />
+
+            <!-- Grain switch -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Film Grain"
+                    android:textColor="@android:color/white"
+                    android:textSize="14sp" />
+                <Switch
+                    android:id="@+id/switch_grain"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="true" />
+            </LinearLayout>
+
+            <!-- ============================================================ -->
+            <!-- COLOR -->
+            <!-- ============================================================ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="COLOR"
+                android:textColor="#888888"
+                android:textSize="11sp"
+                android:letterSpacing="0.15"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="White Balance Mode"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+
+            <Spinner
+                android:id="@+id/spinner_wb_mode"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:backgroundTint="@android:color/white"
+                android:popupBackground="#2A2A2A" />
+
+            <View android:layout_width="match_parent" android:layout_height="8dp" />
+
+            <TextView
+                android:id="@+id/label_wb_strength"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="WB Strength: 1.00"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+            <SeekBar
+                android:id="@+id/seek_wb_strength"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="100"
+                android:progress="100"
+                android:progressTint="#E0A840"
+                android:thumbTint="#E0A840" />
+
+            <View android:layout_width="match_parent" android:layout_height="8dp" />
+
+            <TextView
+                android:id="@+id/label_warmth"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Warmth: 0.00"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+            <SeekBar
+                android:id="@+id/seek_warmth"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="200"
+                android:progress="100"
+                android:progressTint="#E0A840"
+                android:thumbTint="#E0A840" />
+
+            <View android:layout_width="match_parent" android:layout_height="8dp" />
+
+            <TextView
+                android:id="@+id/label_saturation"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Saturation: 1.00"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+            <SeekBar
+                android:id="@+id/seek_saturation"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="200"
+                android:progress="100"
+                android:progressTint="#E0A840"
+                android:thumbTint="#E0A840" />
+
+            <!-- ============================================================ -->
+            <!-- OUTPUT -->
+            <!-- ============================================================ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="OUTPUT"
+                android:textColor="#888888"
+                android:textSize="11sp"
+                android:letterSpacing="0.15"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Output Mode"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+
+            <Spinner
+                android:id="@+id/spinner_output_mode"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:backgroundTint="@android:color/white"
+                android:popupBackground="#2A2A2A" />
+
+            <View android:layout_width="match_parent" android:layout_height="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Auto Levels"
+                    android:textColor="@android:color/white"
+                    android:textSize="14sp" />
+                <Switch
+                    android:id="@+id/switch_auto_levels"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="false" />
+            </LinearLayout>
+
+            <!-- ============================================================ -->
+            <!-- EFFECTS -->
+            <!-- ============================================================ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="EFFECTS"
+                android:textColor="#888888"
+                android:textSize="11sp"
+                android:letterSpacing="0.15"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="4dp" />
+
+            <!-- Light Leak -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Light Leak"
+                    android:textColor="@android:color/white"
+                    android:textSize="14sp" />
+                <Switch
+                    android:id="@+id/switch_light_leak"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="false" />
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="12dp" />
+
+            <!-- Motion Blur -->
+            <TextView
+                android:id="@+id/label_motion_blur"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Motion Blur: 0.00"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+            <SeekBar
+                android:id="@+id/seek_motion_blur"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="200"
+                android:progress="0"
+                android:progressTint="#E0A840"
+                android:thumbTint="#E0A840" />
+
+            <View android:layout_width="match_parent" android:layout_height="8dp" />
+
+            <!-- DOF Amount -->
+            <TextView
+                android:id="@+id/label_dof_amount"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Depth of Field: 0.00"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+            <SeekBar
+                android:id="@+id/seek_dof_amount"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="100"
+                android:progress="0"
+                android:progressTint="#E0A840"
+                android:thumbTint="#E0A840" />
+
+            <View android:layout_width="match_parent" android:layout_height="8dp" />
+
+            <!-- DOF Focus -->
+            <TextView
+                android:id="@+id/label_dof_focus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="DOF Focus: 0.50"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+            <SeekBar
+                android:id="@+id/seek_dof_focus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="100"
+                android:progress="50"
+                android:progressTint="#E0A840"
+                android:thumbTint="#E0A840" />
+
+            <View android:layout_width="match_parent" android:layout_height="8dp" />
+
+            <!-- DOF Swirl -->
+            <TextView
+                android:id="@+id/label_dof_swirl"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="DOF Swirl (Petzval): 0.00"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+            <SeekBar
+                android:id="@+id/seek_dof_swirl"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="100"
+                android:progress="0"
+                android:progressTint="#E0A840"
+                android:thumbTint="#E0A840" />
+
+            <View android:layout_width="match_parent" android:layout_height="8dp" />
+
+            <!-- Rotational Blur -->
+            <TextView
+                android:id="@+id/label_rot_blur"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Rotational Blur: 0.00"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+            <SeekBar
+                android:id="@+id/seek_rot_blur"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="200"
+                android:progress="0"
+                android:progressTint="#E0A840"
+                android:thumbTint="#E0A840" />
+
+            <!-- ============================================================ -->
+            <!-- RESET -->
+            <!-- ============================================================ -->
+            <Button
+                android:id="@+id/btn_reset_defaults"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="16dp"
+                android:text="Reset to Defaults"
+                android:backgroundTint="#333333"
+                android:textColor="@android:color/white" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>

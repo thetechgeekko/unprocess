@@ -1,0 +1,774 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/filmr_bg_darkest">
+
+    <!-- Toolbar -->
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/settings_toolbar"
+        style="@style/FilmrToolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:elevation="4dp"
+        app:title="SETTINGS"
+        app:titleTextAppearance="@style/FilmrToolbarTitle"
+        app:navigationIcon="@drawable/ic_back" />
+
+    <!-- 1px separator under toolbar -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/filmr_border" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbarThumbVertical="@color/filmr_border">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp"
+            android:paddingBottom="24dp">
+
+            <!-- ============================================================ -->
+            <!-- FILM STOCK section -->
+            <!-- ============================================================ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="FILM STOCK"
+                android:textColor="@color/filmr_section_header"
+                android:textSize="10sp"
+                android:letterSpacing="0.15"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="6dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_filmr_section"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Preset"
+                    android:textColor="@color/filmr_text_secondary"
+                    android:textSize="11sp" />
+
+                <Spinner
+                    android:id="@+id/spinner_preset"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="2dp"
+                    android:backgroundTint="@color/filmr_accent"
+                    android:popupBackground="@color/filmr_bg_medium" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp"
+                    android:background="@color/filmr_border" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Film Style"
+                    android:textColor="@color/filmr_text_secondary"
+                    android:textSize="11sp" />
+
+                <Spinner
+                    android:id="@+id/spinner_style"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="2dp"
+                    android:backgroundTint="@color/filmr_accent"
+                    android:popupBackground="@color/filmr_bg_medium" />
+
+            </LinearLayout>
+
+            <!-- ============================================================ -->
+            <!-- SIMULATION section -->
+            <!-- ============================================================ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="SIMULATION"
+                android:textColor="@color/filmr_section_header"
+                android:textSize="10sp"
+                android:letterSpacing="0.15"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="6dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_filmr_section"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Mode"
+                    android:textColor="@color/filmr_text_secondary"
+                    android:textSize="11sp" />
+
+                <Spinner
+                    android:id="@+id/spinner_sim_mode"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="2dp"
+                    android:backgroundTint="@color/filmr_accent"
+                    android:popupBackground="@color/filmr_bg_medium" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp"
+                    android:background="@color/filmr_border" />
+
+                <!-- labeled_slider: Exposure -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Exposure Time"
+                        android:textColor="@color/filmr_text_secondary"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/label_exposure"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="1.00 s"
+                        android:textColor="@color/filmr_text_primary"
+                        android:textSize="11sp" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/seek_exposure"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:max="390"
+                    android:progress="90"
+                    android:progressTint="@color/filmr_accent"
+                    android:thumbTint="@color/filmr_accent"
+                    android:progressBackgroundTint="@color/filmr_bg_hover" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="@color/filmr_border" />
+
+                <!-- Film Grain switch -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Film Grain"
+                        android:textColor="@color/filmr_text_primary"
+                        android:textSize="13sp" />
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/switch_grain"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        app:thumbTint="@color/filmr_accent"
+                        app:trackTint="@color/filmr_accent_dim" />
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- ============================================================ -->
+            <!-- COLOR section -->
+            <!-- ============================================================ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="COLOR"
+                android:textColor="@color/filmr_section_header"
+                android:textSize="10sp"
+                android:letterSpacing="0.15"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="6dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_filmr_section"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="White Balance Mode"
+                    android:textColor="@color/filmr_text_secondary"
+                    android:textSize="11sp" />
+
+                <Spinner
+                    android:id="@+id/spinner_wb_mode"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="2dp"
+                    android:backgroundTint="@color/filmr_accent"
+                    android:popupBackground="@color/filmr_bg_medium" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp"
+                    android:background="@color/filmr_border" />
+
+                <!-- labeled_slider: WB Strength -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="WB Strength"
+                        android:textColor="@color/filmr_text_secondary"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/label_wb_strength"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="1.00"
+                        android:textColor="@color/filmr_text_primary"
+                        android:textSize="11sp" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/seek_wb_strength"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:max="100"
+                    android:progress="100"
+                    android:progressTint="@color/filmr_accent"
+                    android:thumbTint="@color/filmr_accent"
+                    android:progressBackgroundTint="@color/filmr_bg_hover" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="@color/filmr_border" />
+
+                <!-- labeled_slider: Warmth -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Warmth"
+                        android:textColor="@color/filmr_text_secondary"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/label_warmth"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0.00"
+                        android:textColor="@color/filmr_text_primary"
+                        android:textSize="11sp" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/seek_warmth"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:max="200"
+                    android:progress="100"
+                    android:progressTint="@color/filmr_accent"
+                    android:thumbTint="@color/filmr_accent"
+                    android:progressBackgroundTint="@color/filmr_bg_hover" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="@color/filmr_border" />
+
+                <!-- labeled_slider: Saturation -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Saturation"
+                        android:textColor="@color/filmr_text_secondary"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/label_saturation"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="1.00"
+                        android:textColor="@color/filmr_text_primary"
+                        android:textSize="11sp" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/seek_saturation"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:max="200"
+                    android:progress="100"
+                    android:progressTint="@color/filmr_accent"
+                    android:thumbTint="@color/filmr_accent"
+                    android:progressBackgroundTint="@color/filmr_bg_hover" />
+
+            </LinearLayout>
+
+            <!-- ============================================================ -->
+            <!-- OUTPUT section -->
+            <!-- ============================================================ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="OUTPUT"
+                android:textColor="@color/filmr_section_header"
+                android:textSize="10sp"
+                android:letterSpacing="0.15"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="6dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_filmr_section"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Output Mode"
+                    android:textColor="@color/filmr_text_secondary"
+                    android:textSize="11sp" />
+
+                <Spinner
+                    android:id="@+id/spinner_output_mode"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="2dp"
+                    android:backgroundTint="@color/filmr_accent"
+                    android:popupBackground="@color/filmr_bg_medium" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp"
+                    android:background="@color/filmr_border" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Auto Levels"
+                        android:textColor="@color/filmr_text_primary"
+                        android:textSize="13sp" />
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/switch_auto_levels"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="false"
+                        app:thumbTint="@color/filmr_accent"
+                        app:trackTint="@color/filmr_accent_dim" />
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- ============================================================ -->
+            <!-- EFFECTS section -->
+            <!-- ============================================================ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="EFFECTS"
+                android:textColor="@color/filmr_section_header"
+                android:textSize="10sp"
+                android:letterSpacing="0.15"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="6dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_filmr_section"
+                android:padding="12dp">
+
+                <!-- Light Leak -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Light Leak"
+                        android:textColor="@color/filmr_text_primary"
+                        android:textSize="13sp" />
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/switch_light_leak"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="false"
+                        app:thumbTint="@color/filmr_accent"
+                        app:trackTint="@color/filmr_accent_dim" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="@color/filmr_border" />
+
+                <!-- labeled_slider: Motion Blur -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Motion Blur"
+                        android:textColor="@color/filmr_text_secondary"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/label_motion_blur"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0.00"
+                        android:textColor="@color/filmr_text_primary"
+                        android:textSize="11sp" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/seek_motion_blur"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:max="200"
+                    android:progress="0"
+                    android:progressTint="@color/filmr_accent"
+                    android:thumbTint="@color/filmr_accent"
+                    android:progressBackgroundTint="@color/filmr_bg_hover" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="@color/filmr_border" />
+
+                <!-- labeled_slider: Rotational Blur -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Rotational Blur"
+                        android:textColor="@color/filmr_text_secondary"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/label_rot_blur"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0.00"
+                        android:textColor="@color/filmr_text_primary"
+                        android:textSize="11sp" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/seek_rot_blur"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:max="200"
+                    android:progress="0"
+                    android:progressTint="@color/filmr_accent"
+                    android:thumbTint="@color/filmr_accent"
+                    android:progressBackgroundTint="@color/filmr_bg_hover" />
+
+            </LinearLayout>
+
+            <!-- ============================================================ -->
+            <!-- DEPTH OF FIELD section -->
+            <!-- ============================================================ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="DEPTH OF FIELD"
+                android:textColor="@color/filmr_section_header"
+                android:textSize="10sp"
+                android:letterSpacing="0.15"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="6dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_filmr_section"
+                android:padding="12dp">
+
+                <!-- labeled_slider: DOF Amount -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Amount"
+                        android:textColor="@color/filmr_text_secondary"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/label_dof_amount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0.00"
+                        android:textColor="@color/filmr_text_primary"
+                        android:textSize="11sp" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/seek_dof_amount"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:max="100"
+                    android:progress="0"
+                    android:progressTint="@color/filmr_accent"
+                    android:thumbTint="@color/filmr_accent"
+                    android:progressBackgroundTint="@color/filmr_bg_hover" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="@color/filmr_border" />
+
+                <!-- labeled_slider: DOF Focus -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Focus Point"
+                        android:textColor="@color/filmr_text_secondary"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/label_dof_focus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0.50"
+                        android:textColor="@color/filmr_text_primary"
+                        android:textSize="11sp" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/seek_dof_focus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:max="100"
+                    android:progress="50"
+                    android:progressTint="@color/filmr_accent"
+                    android:thumbTint="@color/filmr_accent"
+                    android:progressBackgroundTint="@color/filmr_bg_hover" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="@color/filmr_border" />
+
+                <!-- labeled_slider: DOF Swirl (Petzval) -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Swirl (Petzval)"
+                        android:textColor="@color/filmr_text_secondary"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/label_dof_swirl"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0.00"
+                        android:textColor="@color/filmr_text_primary"
+                        android:textSize="11sp" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/seek_dof_swirl"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:max="100"
+                    android:progress="0"
+                    android:progressTint="@color/filmr_accent"
+                    android:thumbTint="@color/filmr_accent"
+                    android:progressBackgroundTint="@color/filmr_bg_hover" />
+
+            </LinearLayout>
+
+            <!-- ============================================================ -->
+            <!-- DEPTH ESTIMATION section -->
+            <!-- ============================================================ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="DEPTH ESTIMATION"
+                android:textColor="@color/filmr_section_header"
+                android:textSize="10sp"
+                android:letterSpacing="0.15"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="6dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_filmr_section"
+                android:padding="12dp">
+
+                <TextView
+                    android:id="@+id/label_depth_model_status"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Model: not downloaded (~95 MB)"
+                    android:textColor="@color/filmr_text_secondary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Enables depth-aware DOF and object motion blur."
+                    android:textColor="@color/filmr_section_header"
+                    android:textSize="11sp"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="10dp" />
+
+                <Button
+                    android:id="@+id/btn_download_depth_model"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:text="Download Depth Model"
+                    android:background="@drawable/bg_filmr_button_accent"
+                    android:textColor="@color/filmr_bg_darkest"
+                    android:textSize="12sp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="@color/filmr_border" />
+
+                <!-- labeled_slider: Object Motion (depth-based) -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Object Motion"
+                        android:textColor="@color/filmr_text_secondary"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/label_object_motion"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0.00"
+                        android:textColor="@color/filmr_text_primary"
+                        android:textSize="11sp" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/seek_object_motion"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:max="100"
+                    android:progress="0"
+                    android:progressTint="@color/filmr_accent"
+                    android:thumbTint="@color/filmr_accent"
+                    android:progressBackgroundTint="@color/filmr_bg_hover" />
+
+            </LinearLayout>
+
+            <!-- ============================================================ -->
+            <!-- RESET button -->
+            <!-- ============================================================ -->
+            <Button
+                android:id="@+id/btn_reset_defaults"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_marginTop="28dp"
+                android:text="Reset to Defaults"
+                android:background="@drawable/bg_filmr_button_secondary"
+                android:textColor="@color/filmr_text_secondary"
+                android:textSize="12sp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>

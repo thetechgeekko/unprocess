@@ -72,7 +72,6 @@
             app:argType="boolean"
             app:nullable="false" />
 
-
         <action
             android:id="@+id/action_camera_to_permissions"
             app:destination="@id/permissions_fragment"
@@ -84,7 +83,16 @@
             app:destination="@id/image_viewer_fragment"
             app:launchSingleTop="true" />
 
+        <action
+            android:id="@+id/action_camera_to_settings"
+            app:destination="@id/settings_fragment" />
+
     </fragment>
+
+    <fragment
+        android:id="@+id/settings_fragment"
+        android:name="com.reilandeubank.unprocess.fragments.SettingsFragment"
+        android:label="Filmr Settings" />
 
     <fragment
         android:id="@+id/image_viewer_fragment"

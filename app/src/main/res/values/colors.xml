@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- FILMr dark professional palette — mirrors apps/filmr/src/ui/theme.rs -->
+    <color name="filmr_bg_darkest">#18181C</color>
+    <color name="filmr_bg_dark">#202024</color>
+    <color name="filmr_bg_medium">#2A2A30</color>
+    <color name="filmr_bg_hover">#34343C</color>
+    <color name="filmr_bg_active">#3E3E48</color>
+    <color name="filmr_text_primary">#DCDCE1</color>
+    <color name="filmr_text_secondary">#9696A0</color>
+    <color name="filmr_accent">#E69B32</color>
+    <color name="filmr_accent_dim">#7B4A19</color>
+    <color name="filmr_border">#373741</color>
+    <color name="filmr_section_header">#5A5A64</color>
+    <color name="filmr_warn">#FFB432</color>
+    <color name="filmr_error">#FF5050</color>
+    <!-- Camera overlay -->
+    <color name="filmr_overlay_bar">#CC18181C</color>
+    <color name="filmr_overlay_button">#99202024</color>
+</resources>

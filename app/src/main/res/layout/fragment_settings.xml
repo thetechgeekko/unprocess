@@ -740,6 +740,18 @@
                     android:insetTop="0dp"
                     android:insetBottom="0dp" />
 
+                <ProgressBar
+                    android:id="@+id/progress_depth_model"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="8dp"
+                    android:layout_marginTop="8dp"
+                    android:max="100"
+                    android:progress="0"
+                    android:progressTint="@color/filmr_accent"
+                    android:progressBackgroundTint="@color/filmr_bg_hover"
+                    android:visibility="gone" />
+
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"

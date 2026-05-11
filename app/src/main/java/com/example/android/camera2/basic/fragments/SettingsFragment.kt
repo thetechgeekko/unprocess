@@ -25,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.net.HttpURLConnection
 import java.net.URL
 
 /**
@@ -289,18 +290,52 @@ class SettingsFragment : Fragment() {
         refreshDepthModelStatus()
         binding.btnDownloadDepthModel.setOnClickListener {
             it.isEnabled = false
-            binding.labelDepthModelStatus.text = "Downloading…"
+            binding.progressDepthModel.progress = 0
+            binding.progressDepthModel.visibility = View.VISIBLE
+            binding.labelDepthModelStatus.text = "Connecting…"
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     val dest = depthModelFile().also { f -> f.parentFile?.mkdirs() }
                     val tmp = File(dest.parent, dest.name + ".tmp")
-                    URL(FilmrEngine.DEPTH_MODEL_URL).openStream().use { input ->
-                        tmp.outputStream().use { output -> input.copyTo(output) }
+
+                    val conn = URL(FilmrEngine.DEPTH_MODEL_URL).openConnection() as HttpURLConnection
+                    conn.connect()
+                    val totalBytes = conn.contentLengthLong
+                        .takeIf { len -> len > 0L } ?: FilmrEngine.DEPTH_MODEL_SIZE_BYTES
+                    val totalMB = totalBytes / 1_048_576f
+
+                    val buffer = ByteArray(16 * 1024)
+                    var downloadedBytes = 0L
+                    var lastReportedMB = -1L
+
+                    conn.inputStream.use { input ->
+                        tmp.outputStream().use { output ->
+                            while (true) {
+                                val n = input.read(buffer)
+                                if (n == -1) break
+                                output.write(buffer, 0, n)
+                                downloadedBytes += n
+                                val downloadedMB = downloadedBytes / 1_048_576
+                                if (downloadedMB > lastReportedMB) {
+                                    lastReportedMB = downloadedMB
+                                    val pct = ((downloadedBytes.toFloat() / totalBytes) * 100).toInt()
+                                    withContext(Dispatchers.Main) {
+                                        binding.labelDepthModelStatus.text =
+                                            "%.0f / %.0f MB".format(downloadedMB.toFloat(), totalMB)
+                                        binding.progressDepthModel.progress = pct
+                                    }
+                                }
+                            }
+                        }
                     }
                     tmp.renameTo(dest)
-                    withContext(Dispatchers.Main) { refreshDepthModelStatus() }
+                    withContext(Dispatchers.Main) {
+                        binding.progressDepthModel.visibility = View.GONE
+                        refreshDepthModelStatus()
+                    }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
+                        binding.progressDepthModel.visibility = View.GONE
                         binding.labelDepthModelStatus.text = "Download failed: ${e.message}"
                         binding.btnDownloadDepthModel.isEnabled = true
                     }
@@ -310,6 +345,7 @@ class SettingsFragment : Fragment() {
     }
 
     private fun refreshDepthModelStatus() {
+        binding.progressDepthModel.visibility = View.GONE
         val f = depthModelFile()
         if (!FilmrEngine.isDepthEstimationSupported) {
             binding.labelDepthModelStatus.text =

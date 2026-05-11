@@ -63,6 +63,7 @@ enum class FilmPreset(
     POLAROID_I_TYPE_COLOR("POLAROID_I_TYPE_COLOR", "Polaroid", "i-Type Color", 640),
     POLAROID_BW_667("POLAROID_BW_667", "Polaroid", "667 B&W", 3000),
     POLAROID_SPECTRA_COLOR("POLAROID_SPECTRA_COLOR", "Polaroid", "Spectra Color", 640),
+    POLAROID_100_COLOR("POLAROID_100_COLOR", "Polaroid", "100 Color", 100),
     POLAROID_55_BW("POLAROID_55_BW", "Polaroid", "55 B&W", 50),
     // Other
     CINESTILL_800T("CINESTILL_800T", "CineStill", "800T", 800),
@@ -150,8 +151,6 @@ data class FilmrConfig(
     }
 
     companion object {
-        private const val PREFS_NAME = "filmr_settings"
-
         fun load(prefs: SharedPreferences): FilmrConfig = FilmrConfig(
             preset = FilmPreset.entries.getOrElse(
                 prefs.getInt("preset_ordinal", FilmPreset.KODAK_PORTRA_400.ordinal)

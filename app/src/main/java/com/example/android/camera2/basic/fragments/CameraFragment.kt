@@ -56,6 +56,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.Navigation
 import androidx.navigation.fragment.navArgs
+import com.google.android.material.snackbar.Snackbar
 import com.reilandeubank.unprocess.utils.computeExifOrientation
 import com.reilandeubank.unprocess.utils.getPreviewOutputSize
 import com.reilandeubank.unprocess.utils.OrientationLiveData
@@ -68,6 +69,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.io.Closeable
 import java.io.File
 import java.io.FileOutputStream
@@ -206,6 +208,11 @@ class CameraFragment : Fragment() {
 
         setupTouchInteractions()
 
+        if (!FilmrEngine.isAvailable && !filmrUnavailableWarningShown) {
+            filmrUnavailableWarningShown = true
+            showSnackbar("Film simulation engine unavailable — photos will be saved without film processing")
+        }
+
         fragmentCameraBinding.captureButton.setOnClickListener {
             it.isEnabled = false
             fragmentCameraBinding.processingOverlay.visibility = View.VISIBLE
@@ -215,7 +222,7 @@ class CameraFragment : Fragment() {
                         Log.d(TAG, "Result received: $result")
                         val output = saveResult(result)
                         Log.d(TAG, "Image saved: ${output.absolutePath}")
-                        lifecycleScope.launch(Dispatchers.Main) {
+                        withContext(Dispatchers.Main) {
                             navController.navigate(
                                 CameraFragmentDirections
                                     .actionCameraToJpegViewer(output.absolutePath)
@@ -229,13 +236,17 @@ class CameraFragment : Fragment() {
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Capture failed", e)
-                    it.post {
+                    withContext(Dispatchers.Main) {
                         fragmentCameraBinding.processingOverlay.visibility = View.GONE
                         it.isEnabled = true
                     }
                 }
             }
         }
+    }
+
+    private fun showSnackbar(message: String) {
+        Snackbar.make(fragmentCameraBinding.root, message, Snackbar.LENGTH_LONG).show()
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -453,18 +464,17 @@ class CameraFragment : Fragment() {
         }, cameraHandler)
     }
 
-    private suspend fun saveResult(result: CombinedCaptureResult): File = suspendCoroutine { cont ->
+    private suspend fun saveResult(result: CombinedCaptureResult): File {
         val prefs = requireContext()
             .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
         val filmrConfig = FilmrConfig.load(prefs)
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
 
-        when (result.format) {
+        return when (result.format) {
             ImageFormat.RAW_SENSOR -> {
                 val rawImage = result.rawImage!!
                 val dngCreator = DngCreator(characteristics, result.metadata)
                 try {
-                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-
                     dngCreator.setOrientation(result.orientation)
                     val dngStream = java.io.ByteArrayOutputStream()
                     dngCreator.writeImage(dngStream, rawImage)
@@ -476,64 +486,63 @@ class CameraFragment : Fragment() {
                     }
 
                     var bitmap: Bitmap? = FilmrEngine.processFromDng(dngBytes, filmrConfig)
-                    val filmrAlreadyApplied = (bitmap != null)
+                    val filmrAlreadyApplied = bitmap != null
 
-                    if (bitmap == null) {
+                    if (!filmrAlreadyApplied) {
                         Log.d(TAG, "processFromDng unavailable, falling back to JPEG companion")
+                        withContext(Dispatchers.Main) {
+                            showSnackbar("Film simulation unavailable — saved original")
+                        }
                         val jpegPlane = result.image.planes[0]
                         val jpegBytes = ByteArray(jpegPlane.buffer.remaining())
                         jpegPlane.buffer.get(jpegBytes)
                         bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
                     }
 
-                    if (bitmap == null) {
-                        cont.resumeWithException(IOException("Failed to decode image from both DNG and JPEG paths"))
-                        return@suspendCoroutine
+                    val decoded = bitmap
+                        ?: throw IOException("Failed to decode image from both DNG and JPEG paths")
+
+                    val finalBitmap = if (!filmrAlreadyApplied) {
+                        val (processed, success) = applyFilmrProcessing(decoded)
+                        if (!success && FilmrEngine.isAvailable) {
+                            withContext(Dispatchers.Main) {
+                                showSnackbar("Film simulation failed — saved original")
+                            }
+                        }
+                        if (processed !== decoded) decoded.recycle()
+                        processed
+                    } else {
+                        decoded
                     }
 
-                    if (!filmrAlreadyApplied) bitmap = applyFilmrProcessing(bitmap)
-
-                    val savedFile = saveJpeg(bitmap, "IMG_$timestamp.jpg", result.orientation, filmrConfig.jpegQuality)
-                    bitmap.recycle()
-                    cont.resume(savedFile)
-
-                } catch (exc: IOException) {
-                    Log.e(TAG, "Failed to save image", exc)
-                    cont.resumeWithException(exc)
+                    val savedFile = saveJpeg(finalBitmap, "IMG_$timestamp.jpg", result.orientation, filmrConfig.jpegQuality)
+                    finalBitmap.recycle()
+                    savedFile
                 } finally {
                     dngCreator.close()
                 }
             }
 
             ImageFormat.JPEG -> {
-                try {
-                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-                    val jpegPlane = result.image.planes[0]
-                    val jpegBytes = ByteArray(jpegPlane.buffer.remaining())
-                    jpegPlane.buffer.get(jpegBytes)
-                    var bitmap: Bitmap? = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
+                val jpegPlane = result.image.planes[0]
+                val jpegBytes = ByteArray(jpegPlane.buffer.remaining())
+                jpegPlane.buffer.get(jpegBytes)
+                val rawBitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
+                    ?: throw IOException("Failed to decode JPEG image")
 
-                    if (bitmap == null) {
-                        cont.resumeWithException(IOException("Failed to decode JPEG image"))
-                        return@suspendCoroutine
+                val (finalBitmap, success) = applyFilmrProcessing(rawBitmap)
+                if (!success && FilmrEngine.isAvailable) {
+                    withContext(Dispatchers.Main) {
+                        showSnackbar("Film simulation failed — saved original")
                     }
-
-                    bitmap = applyFilmrProcessing(bitmap)
-                    val savedFile = saveJpeg(bitmap, "IMG_$timestamp.jpg", result.orientation, filmrConfig.jpegQuality)
-                    bitmap.recycle()
-                    cont.resume(savedFile)
-
-                } catch (exc: IOException) {
-                    Log.e(TAG, "Failed to save image", exc)
-                    cont.resumeWithException(exc)
                 }
+                if (finalBitmap !== rawBitmap) rawBitmap.recycle()
+                val savedFile = saveJpeg(finalBitmap, "IMG_$timestamp.jpg", result.orientation, filmrConfig.jpegQuality)
+                finalBitmap.recycle()
+                savedFile
             }
 
-            else -> {
-                val exc = RuntimeException("Unknown image format: ${result.format}")
-                Log.e(TAG, exc.message, exc)
-                cont.resumeWithException(exc)
-            }
+            else -> throw RuntimeException("Unknown image format: ${result.format}")
         }
     }
 
@@ -545,20 +554,19 @@ class CameraFragment : Fragment() {
             "${config.preset.manufacturer.uppercase()} · ${config.preset.displayName}"
     }
 
-    private fun applyFilmrProcessing(bitmap: Bitmap): Bitmap {
-        if (!FilmrEngine.isAvailable) return bitmap
+    private fun applyFilmrProcessing(bitmap: Bitmap): Pair<Bitmap, Boolean> {
+        if (!FilmrEngine.isAvailable) return Pair(bitmap, false)
         val prefs = requireContext()
             .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
         val config = FilmrConfig.load(prefs)
         Log.d(TAG, "Applying filmr: preset=${config.preset.key}, style=${config.styleKey()}")
         val modelFile = java.io.File(requireContext().filesDir, "models/${FilmrEngine.DEPTH_MODEL_FILENAME}")
-        return if (FilmrEngine.isDepthEstimationSupported && modelFile.exists() &&
-                   (config.dofAmount > 0f || config.objectMotionAmount > 0f)) {
-            Log.d(TAG, "Using depth-aware filmr processing")
-            FilmrEngine.processWithDepth(bitmap, config, modelFile.absolutePath)
-        } else {
-            FilmrEngine.process(bitmap, config)
-        }
+        val modelPath = if (FilmrEngine.isDepthEstimationSupported && modelFile.exists() &&
+                           (config.dofAmount > 0f || config.objectMotionAmount > 0f))
+                           modelFile.absolutePath else ""
+        val (result, error) = FilmrEngine.processChecked(bitmap, config, modelPath)
+        if (error != null) Log.e(TAG, "filmr processing error: $error")
+        return Pair(result, error == null)
     }
 
     private fun saveDngBytes(dngBytes: ByteArray, filename: String) {
@@ -639,6 +647,7 @@ class CameraFragment : Fragment() {
         private val TAG = CameraFragment::class.java.simpleName
         private const val IMAGE_BUFFER_SIZE: Int = 3
         private const val IMAGE_CAPTURE_TIMEOUT_MILLIS: Long = 5000
+        private var filmrUnavailableWarningShown = false
 
         data class CombinedCaptureResult(
             val image: Image,

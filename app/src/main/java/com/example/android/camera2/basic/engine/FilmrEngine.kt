@@ -92,7 +92,7 @@ object FilmrEngine {
      * Returns [bitmap] unchanged if the library is unavailable.
      */
     fun process(bitmap: Bitmap, config: FilmrConfig): Bitmap =
-        processInternal(bitmap, config, "")
+        processChecked(bitmap, config).first
 
     /**
      * Apply filmr to [bitmap] with monocular depth estimation for realistic DOF
@@ -106,7 +106,52 @@ object FilmrEngine {
      * Falls back to flat-depth processing on any failure.
      */
     fun processWithDepth(bitmap: Bitmap, config: FilmrConfig, modelPath: String): Bitmap =
-        processInternal(bitmap, config, modelPath)
+        processChecked(bitmap, config, modelPath).first
+
+    /**
+     * Like [process]/[processWithDepth] but returns (resultBitmap, errorMessage).
+     * errorMessage is null on success; non-null when processing failed and [bitmap]
+     * was returned unchanged.
+     */
+    fun processChecked(bitmap: Bitmap, config: FilmrConfig, modelPath: String = ""): Pair<Bitmap, String?> {
+        if (!loaded) return Pair(bitmap, "filmr library unavailable")
+
+        val w = bitmap.width
+        val h = bitmap.height
+        val pixels = IntArray(w * h)
+        bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
+        val rgba = ByteArray(w * h * 4)
+        for (i in pixels.indices) {
+            val argb = pixels[i]
+            rgba[i * 4]     = ((argb shr 16) and 0xFF).toByte()  // R
+            rgba[i * 4 + 1] = ((argb shr 8)  and 0xFF).toByte()  // G
+            rgba[i * 4 + 2] = (argb          and 0xFF).toByte()  // B
+            rgba[i * 4 + 3] = ((argb shr 24) and 0xFF).toByte()  // A
+        }
+
+        val rgb = try {
+            if (modelPath.isEmpty()) {
+                processImage(rgba, w, h, config.preset.key, config.styleKey(), config.toSimConfigJson())
+            } else {
+                processImageWithDepth(rgba, w, h, config.preset.key, config.styleKey(), config.toSimConfigJson(), modelPath)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "filmr processing failed", e)
+            return Pair(bitmap, e.message ?: "unknown processing error")
+        } ?: return Pair(bitmap, "native processing returned null result")
+
+        val resultPixels = IntArray(w * h)
+        for (i in resultPixels.indices) {
+            val r = rgb[i * 3].toInt()     and 0xFF
+            val g = rgb[i * 3 + 1].toInt() and 0xFF
+            val b = rgb[i * 3 + 2].toInt() and 0xFF
+            resultPixels[i] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+        }
+        val resultBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also {
+            it.setPixels(resultPixels, 0, w, 0, 0, w, h)
+        }
+        return Pair(resultBitmap, null)
+    }
 
     /**
      * Decode a raw DNG file and apply filmr simulation in one JNI call.
@@ -152,46 +197,6 @@ object FilmrEngine {
         } catch (e: Exception) {
             Log.e(TAG, "processFromDng failed", e)
             null
-        }
-    }
-
-    private fun processInternal(bitmap: Bitmap, config: FilmrConfig, modelPath: String): Bitmap {
-        if (!loaded) return bitmap
-
-        val w = bitmap.width
-        val h = bitmap.height
-
-        val pixels = IntArray(w * h)
-        bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
-        val rgba = ByteArray(w * h * 4)
-        for (i in pixels.indices) {
-            val argb = pixels[i]
-            rgba[i * 4]     = ((argb shr 16) and 0xFF).toByte()  // R
-            rgba[i * 4 + 1] = ((argb shr 8)  and 0xFF).toByte()  // G
-            rgba[i * 4 + 2] = (argb          and 0xFF).toByte()  // B
-            rgba[i * 4 + 3] = ((argb shr 24) and 0xFF).toByte()  // A (unused)
-        }
-
-        val rgb = try {
-            if (modelPath.isEmpty()) {
-                processImage(rgba, w, h, config.preset.key, config.styleKey(), config.toSimConfigJson())
-            } else {
-                processImageWithDepth(rgba, w, h, config.preset.key, config.styleKey(), config.toSimConfigJson(), modelPath)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "filmr processing failed", e)
-            return bitmap
-        } ?: return bitmap
-
-        val resultPixels = IntArray(w * h)
-        for (i in resultPixels.indices) {
-            val r = rgb[i * 3].toInt()     and 0xFF
-            val g = rgb[i * 3 + 1].toInt() and 0xFF
-            val b = rgb[i * 3 + 2].toInt() and 0xFF
-            resultPixels[i] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
-        }
-        return Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also {
-            it.setPixels(resultPixels, 0, w, 0, 0, w, h)
         }
     }
 

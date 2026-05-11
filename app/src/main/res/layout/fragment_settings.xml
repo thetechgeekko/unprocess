@@ -304,6 +304,64 @@
 
             <View android:layout_width="match_parent" android:layout_height="12dp" />
 
+            <!-- ============================================================ -->
+            <!-- DEPTH ESTIMATION -->
+            <!-- ============================================================ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="DEPTH ESTIMATION"
+                android:textColor="#888888"
+                android:textSize="11sp"
+                android:letterSpacing="0.15"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/label_depth_model_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Model: not downloaded (~95 MB)"
+                android:textColor="#AAAAAA"
+                android:textSize="13sp" />
+
+            <Button
+                android:id="@+id/btn_download_depth_model"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:text="Download Depth Model"
+                android:backgroundTint="#2A4A7A"
+                android:textColor="@android:color/white" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Enables realistic depth-of-field and object motion. Requires the model above."
+                android:textColor="#888888"
+                android:textSize="12sp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Object Motion (depth-based) -->
+            <TextView
+                android:id="@+id/label_object_motion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Object Motion (depth): 0.00"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+            <SeekBar
+                android:id="@+id/seek_object_motion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="100"
+                android:progress="0"
+                android:progressTint="#E0A840"
+                android:thumbTint="#E0A840" />
+
+            <View android:layout_width="match_parent" android:layout_height="12dp" />
+
             <!-- Motion Blur -->
             <TextView
                 android:id="@+id/label_motion_blur"

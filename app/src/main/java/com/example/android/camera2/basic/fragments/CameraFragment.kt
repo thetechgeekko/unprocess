@@ -400,7 +400,14 @@ class CameraFragment : Fragment() {
             .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
         val config = FilmrConfig.load(prefs)
         Log.d(TAG, "Applying filmr: preset=${config.preset.key}, style=${config.styleKey()}")
-        return FilmrEngine.process(bitmap, config)
+        val modelFile = java.io.File(requireContext().filesDir, "models/${FilmrEngine.DEPTH_MODEL_FILENAME}")
+        return if (FilmrEngine.isDepthEstimationSupported && modelFile.exists() &&
+                   (config.dofAmount > 0f || config.objectMotionAmount > 0f)) {
+            Log.d(TAG, "Using depth-aware filmr processing")
+            FilmrEngine.processWithDepth(bitmap, config, modelFile.absolutePath)
+        } else {
+            FilmrEngine.process(bitmap, config)
+        }
     }
 
     private fun saveDng(dngCreator: DngCreator, image: Image, filename: String) {

@@ -97,6 +97,7 @@ data class FilmrConfig(
     val warmth: Float = 0.0f,
     val saturation: Float = 1.0f,
     val motionBlurAmount: Float = 0.0f,
+    val objectMotionAmount: Float = 0.0f,
     val dofAmount: Float = 0.0f,
     val dofFocus: Float = 0.5f,
     val dofSwirl: Float = 0.0f,
@@ -129,7 +130,7 @@ data class FilmrConfig(
             put("light_leak", JSONObject(lightLeakJson))
             put("motion_blur_amount", motionBlurAmount.toDouble())
             put("motion_blur_seed", 42)
-            put("object_motion_amount", 0.0)
+            put("object_motion_amount", objectMotionAmount.toDouble())
             put("auto_levels", autoLevels)
             put("dof_amount", dofAmount.toDouble())
             put("dof_focus", dofFocus.toDouble())
@@ -173,6 +174,7 @@ data class FilmrConfig(
             warmth = prefs.getFloat("warmth", 0.0f),
             saturation = prefs.getFloat("saturation", 1.0f),
             motionBlurAmount = prefs.getFloat("motion_blur_amount", 0.0f),
+            objectMotionAmount = prefs.getFloat("object_motion_amount", 0.0f),
             dofAmount = prefs.getFloat("dof_amount", 0.0f),
             dofFocus = prefs.getFloat("dof_focus", 0.5f),
             dofSwirl = prefs.getFloat("dof_swirl", 0.0f),
@@ -194,6 +196,7 @@ data class FilmrConfig(
                 putFloat("warmth", config.warmth)
                 putFloat("saturation", config.saturation)
                 putFloat("motion_blur_amount", config.motionBlurAmount)
+                putFloat("object_motion_amount", config.objectMotionAmount)
                 putFloat("dof_amount", config.dofAmount)
                 putFloat("dof_focus", config.dofFocus)
                 putFloat("dof_swirl", config.dofSwirl)

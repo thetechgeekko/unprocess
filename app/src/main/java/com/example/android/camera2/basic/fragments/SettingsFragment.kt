@@ -17,9 +17,15 @@ import com.reilandeubank.unprocess.databinding.FragmentSettingsBinding
 import com.reilandeubank.unprocess.engine.FilmPreset
 import com.reilandeubank.unprocess.engine.FilmStyle
 import com.reilandeubank.unprocess.engine.FilmrConfig
+import com.reilandeubank.unprocess.engine.FilmrEngine
 import com.reilandeubank.unprocess.engine.OutputMode
 import com.reilandeubank.unprocess.engine.SimulationMode
 import com.reilandeubank.unprocess.engine.WhiteBalanceMode
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.net.URL
 
 /**
  * Settings screen exposing all filmr engine parameters.
@@ -59,6 +65,7 @@ class SettingsFragment : Fragment() {
         setupWhiteBalanceModeSpinner()
         setupSliders()
         setupSwitches()
+        setupDepthModelSection()
         setupResetButton()
 
         restoreValues()
@@ -193,6 +200,12 @@ class SettingsFragment : Fragment() {
             config = config.copy(saturation = v)
             "%.2f".format(v)
         }
+        // object_motion_amount  0.0 – 1.0  (depth-based, needs depth model)
+        setupSeekBar(binding.seekObjectMotion, binding.labelObjectMotion, "Object Motion (depth)", 0, 100) { raw ->
+            val v = raw / 100f
+            config = config.copy(objectMotionAmount = v)
+            "%.2f".format(v)
+        }
         // motion_blur_amount  0.0 – 2.0
         setupSeekBar(binding.seekMotionBlur, binding.labelMotionBlur, "Motion Blur", 0, 200) { raw ->
             val v = raw / 100f
@@ -262,6 +275,55 @@ class SettingsFragment : Fragment() {
     }
 
     // ------------------------------------------------------------------
+    // Depth model download
+    // ------------------------------------------------------------------
+
+    private fun depthModelFile(): File =
+        File(requireContext().filesDir, "models/${FilmrEngine.DEPTH_MODEL_FILENAME}")
+
+    private fun setupDepthModelSection() {
+        refreshDepthModelStatus()
+        binding.btnDownloadDepthModel.setOnClickListener {
+            it.isEnabled = false
+            binding.labelDepthModelStatus.text = "Downloading…"
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val dest = depthModelFile().also { f -> f.parentFile?.mkdirs() }
+                    val tmp = File(dest.parent, dest.name + ".tmp")
+                    URL(FilmrEngine.DEPTH_MODEL_URL).openStream().use { input ->
+                        tmp.outputStream().use { output -> input.copyTo(output) }
+                    }
+                    tmp.renameTo(dest)
+                    withContext(Dispatchers.Main) { refreshDepthModelStatus() }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        binding.labelDepthModelStatus.text = "Download failed: ${e.message}"
+                        binding.btnDownloadDepthModel.isEnabled = true
+                    }
+                }
+            }
+        }
+    }
+
+    private fun refreshDepthModelStatus() {
+        val f = depthModelFile()
+        if (!FilmrEngine.isDepthEstimationSupported) {
+            binding.labelDepthModelStatus.text =
+                "Depth not compiled in — rebuild with --features depth"
+            binding.btnDownloadDepthModel.isEnabled = false
+        } else if (f.exists()) {
+            val mb = f.length() / 1_048_576
+            binding.labelDepthModelStatus.text = "Model ready (${mb} MB)"
+            binding.btnDownloadDepthModel.text = "Re-download Model"
+            binding.btnDownloadDepthModel.isEnabled = true
+        } else {
+            binding.labelDepthModelStatus.text = "Model: not downloaded (~95 MB)"
+            binding.btnDownloadDepthModel.text = "Download Depth Model"
+            binding.btnDownloadDepthModel.isEnabled = true
+        }
+    }
+
+    // ------------------------------------------------------------------
     // Reset
     // ------------------------------------------------------------------
 
@@ -302,6 +364,7 @@ class SettingsFragment : Fragment() {
         binding.seekWbStrength.progress = (config.whiteBalanceStrength * 100).toInt().coerceIn(0, 100)
         binding.seekWarmth.progress = ((config.warmth * 100) + 100).toInt().coerceIn(0, 200)
         binding.seekSaturation.progress = (config.saturation * 100).toInt().coerceIn(0, 200)
+        binding.seekObjectMotion.progress = (config.objectMotionAmount * 100).toInt().coerceIn(0, 100)
         binding.seekMotionBlur.progress = (config.motionBlurAmount * 100).toInt().coerceIn(0, 200)
         binding.seekDofAmount.progress = (config.dofAmount * 100).toInt().coerceIn(0, 100)
         binding.seekDofFocus.progress = (config.dofFocus * 100).toInt().coerceIn(0, 100)
@@ -313,6 +376,7 @@ class SettingsFragment : Fragment() {
         binding.labelWbStrength.text = "WB Strength: %.2f".format(config.whiteBalanceStrength)
         binding.labelWarmth.text = "Warmth: %.2f".format(config.warmth)
         binding.labelSaturation.text = "Saturation: %.2f".format(config.saturation)
+        binding.labelObjectMotion.text = "Object Motion (depth): %.2f".format(config.objectMotionAmount)
         binding.labelMotionBlur.text = "Motion Blur: %.2f".format(config.motionBlurAmount)
         binding.labelDofAmount.text = "Depth of Field: %.2f".format(config.dofAmount)
         binding.labelDofFocus.text = "DOF Focus: %.2f".format(config.dofFocus)

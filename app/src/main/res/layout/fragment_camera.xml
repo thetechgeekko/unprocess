@@ -1,23 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  ~ Copyright 2020 The Android Open Source Project
-  ~
-  ~ Licensed under the Apache License, Version 2.0 (the "License");
-  ~ you may not use this file except in compliance with the License.
-  ~ You may obtain a copy of the License at
-  ~
-  ~     https://www.apache.org/licenses/LICENSE-2.0
-  ~
-  ~ Unless required by applicable law or agreed to in writing, software
-  ~ distributed under the License is distributed on an "AS IS" BASIS,
-  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  ~ See the License for the specific language governing permissions and
-  ~ limitations under the License.
-  -->
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/filmr_bg_darkest">
 
     <com.reilandeubank.unprocess.utils.AutoFitSurfaceView
         android:id="@+id/view_finder"
@@ -30,27 +16,51 @@
         android:layout_height="match_parent"
         android:foreground="@android:color/transparent" />
 
-    <!-- Settings button — top-right corner -->
+    <!-- Settings button — top-right, FILMr style with amber accent ring -->
     <ImageButton
         android:id="@+id/settings_button"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         android:layout_gravity="top|end"
         android:layout_margin="16dp"
-        android:scaleType="center"
-        android:src="@android:drawable/ic_menu_manage"
-        android:background="#66000000"
-        android:tint="@android:color/white"
+        android:padding="12dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_settings"
+        android:background="@drawable/bg_filmr_camera_button"
         android:contentDescription="@string/settings" />
 
-    <!-- Capture button — bottom center -->
-    <ImageButton
-        android:id="@+id/capture_button"
-        android:layout_width="96dp"
-        android:layout_height="96dp"
-        android:layout_gravity="bottom|center"
-        android:scaleType="fitCenter"
-        android:background="@drawable/ic_shutter"
-        android:contentDescription="@string/capture" />
+    <!-- Bottom status bar: film preset info + capture button -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:background="@color/filmr_overlay_bar">
+
+        <!-- Film info strip (FILMr status-bar equivalent) -->
+        <TextView
+            android:id="@+id/film_info_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/film_info_default"
+            android:textColor="@color/filmr_text_secondary"
+            android:textSize="11sp"
+            android:letterSpacing="0.05"
+            android:gravity="center"
+            android:paddingTop="8dp"
+            android:paddingBottom="0dp" />
+
+        <!-- Capture button centered -->
+        <ImageButton
+            android:id="@+id/capture_button"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_margin="12dp"
+            android:scaleType="fitCenter"
+            android:background="@drawable/ic_shutter"
+            android:contentDescription="@string/capture" />
+
+    </LinearLayout>
 
 </FrameLayout>

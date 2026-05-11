@@ -1,27 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  ~ Copyright 2020 The Android Open Source Project
-  ~
-  ~ Licensed under the Apache License, Version 2.0 (the "License");
-  ~ you may not use this file except in compliance with the License.
-  ~ You may obtain a copy of the License at
-  ~
-  ~     https://www.apache.org/licenses/LICENSE-2.0
-  ~
-  ~ Unless required by applicable law or agreed to in writing, software
-  ~ distributed under the License is distributed on an "AS IS" BASIS,
-  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  ~ See the License for the specific language governing permissions and
-  ~ limitations under the License.
-  -->
 <resources>
 
-    <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.MaterialComponents.Light.NoActionBar">
+    <!-- FILMr dark professional theme -->
+    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="android:immersive">true</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowTranslucentStatus">true</item>
         <item name="android:windowTranslucentNavigation">true</item>
+        <item name="android:windowBackground">@color/filmr_bg_darkest</item>
+        <item name="colorPrimary">@color/filmr_accent</item>
+        <item name="colorPrimaryVariant">@color/filmr_accent_dim</item>
+        <item name="colorOnPrimary">@color/filmr_bg_darkest</item>
+        <item name="colorSurface">@color/filmr_bg_dark</item>
+        <item name="colorOnSurface">@color/filmr_text_primary</item>
+        <item name="android:colorBackground">@color/filmr_bg_darkest</item>
+        <item name="android:textColorPrimary">@color/filmr_text_primary</item>
+        <item name="android:textColorSecondary">@color/filmr_text_secondary</item>
+    </style>
+
+    <!-- Toolbar with FILMr dark panel background -->
+    <style name="FilmrToolbar" parent="Widget.AppCompat.Toolbar">
+        <item name="android:background">@color/filmr_bg_dark</item>
+        <item name="titleTextColor">@color/filmr_text_primary</item>
+        <item name="navigationIconTint">@color/filmr_text_primary</item>
+    </style>
+
+    <!-- Toolbar title: uppercase, slightly spaced, primary text color -->
+    <style name="FilmrToolbarTitle" parent="TextAppearance.Widget.AppCompat.Toolbar.Title">
+        <item name="android:textColor">@color/filmr_text_primary</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:letterSpacing">0.1</item>
+    </style>
+
+    <!-- Spinner popup styled for dark theme -->
+    <style name="FilmrSpinnerPopup" parent="Widget.AppCompat.PopupMenu">
+        <item name="android:popupBackground">@color/filmr_bg_medium</item>
+        <item name="android:textColor">@color/filmr_text_primary</item>
     </style>
 
 </resources>

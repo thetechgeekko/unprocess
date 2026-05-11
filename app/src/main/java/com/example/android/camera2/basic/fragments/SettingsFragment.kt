@@ -177,71 +177,71 @@ class SettingsFragment : Fragment() {
 
     private fun setupSliders() {
         // exposure_time  0.1 – 4.0  (seekbar 0-390, +10 → /100)
-        setupSeekBar(binding.seekExposure, binding.labelExposure, "Exposure Time", 0, 390) { raw ->
+        setupSeekBar(binding.seekExposure, binding.labelExposure, 0, 390) { raw ->
             val v = (raw + 10) / 100f
             config = config.copy(exposureTime = v)
             "%.2f s".format(v)
         }
         // white_balance_strength  0.0 – 1.0
-        setupSeekBar(binding.seekWbStrength, binding.labelWbStrength, "WB Strength", 0, 100) { raw ->
+        setupSeekBar(binding.seekWbStrength, binding.labelWbStrength, 0, 100) { raw ->
             val v = raw / 100f
             config = config.copy(whiteBalanceStrength = v)
             "%.2f".format(v)
         }
         // warmth  -1.0 – 1.0
-        setupSeekBar(binding.seekWarmth, binding.labelWarmth, "Warmth", 0, 200) { raw ->
+        setupSeekBar(binding.seekWarmth, binding.labelWarmth, 0, 200) { raw ->
             val v = (raw - 100) / 100f
             config = config.copy(warmth = v)
             "%.2f".format(v)
         }
         // saturation  0.0 – 2.0
-        setupSeekBar(binding.seekSaturation, binding.labelSaturation, "Saturation", 0, 200) { raw ->
+        setupSeekBar(binding.seekSaturation, binding.labelSaturation, 0, 200) { raw ->
             val v = raw / 100f
             config = config.copy(saturation = v)
             "%.2f".format(v)
         }
         // object_motion_amount  0.0 – 1.0  (depth-based, needs depth model)
-        setupSeekBar(binding.seekObjectMotion, binding.labelObjectMotion, "Object Motion (depth)", 0, 100) { raw ->
+        setupSeekBar(binding.seekObjectMotion, binding.labelObjectMotion, 0, 100) { raw ->
             val v = raw / 100f
             config = config.copy(objectMotionAmount = v)
             "%.2f".format(v)
         }
         // motion_blur_amount  0.0 – 2.0
-        setupSeekBar(binding.seekMotionBlur, binding.labelMotionBlur, "Motion Blur", 0, 200) { raw ->
+        setupSeekBar(binding.seekMotionBlur, binding.labelMotionBlur, 0, 200) { raw ->
             val v = raw / 100f
             config = config.copy(motionBlurAmount = v)
             "%.2f".format(v)
         }
         // dof_amount  0.0 – 1.0
-        setupSeekBar(binding.seekDofAmount, binding.labelDofAmount, "Depth of Field", 0, 100) { raw ->
+        setupSeekBar(binding.seekDofAmount, binding.labelDofAmount, 0, 100) { raw ->
             val v = raw / 100f
             config = config.copy(dofAmount = v)
             "%.2f".format(v)
         }
         // dof_focus  0.0 – 1.0
-        setupSeekBar(binding.seekDofFocus, binding.labelDofFocus, "DOF Focus", 0, 100) { raw ->
+        setupSeekBar(binding.seekDofFocus, binding.labelDofFocus, 0, 100) { raw ->
             val v = raw / 100f
             config = config.copy(dofFocus = v)
             "%.2f".format(v)
         }
         // dof_swirl  0.0 – 1.0
-        setupSeekBar(binding.seekDofSwirl, binding.labelDofSwirl, "DOF Swirl (Petzval)", 0, 100) { raw ->
+        setupSeekBar(binding.seekDofSwirl, binding.labelDofSwirl, 0, 100) { raw ->
             val v = raw / 100f
             config = config.copy(dofSwirl = v)
             "%.2f".format(v)
         }
         // rotational_blur_amount  0.0 – 2.0
-        setupSeekBar(binding.seekRotBlur, binding.labelRotBlur, "Rotational Blur", 0, 200) { raw ->
+        setupSeekBar(binding.seekRotBlur, binding.labelRotBlur, 0, 200) { raw ->
             val v = raw / 100f
             config = config.copy(rotationalBlurAmount = v)
             "%.2f".format(v)
         }
     }
 
+    // label shows only the value (name is a separate static TextView in the layout)
     private fun setupSeekBar(
         seekBar: SeekBar,
-        label: TextView,
-        name: String,
+        valueLabel: TextView,
         min: Int,
         max: Int,
         onChanged: (Int) -> String
@@ -249,8 +249,7 @@ class SettingsFragment : Fragment() {
         seekBar.max = max - min
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
-                val valueLabel = onChanged(progress + min)
-                label.text = "$name: $valueLabel"
+                valueLabel.text = onChanged(progress + min)
                 if (!restoring && fromUser) saveConfig()
             }
             override fun onStartTrackingTouch(sb: SeekBar) = Unit
@@ -371,17 +370,17 @@ class SettingsFragment : Fragment() {
         binding.seekDofSwirl.progress = (config.dofSwirl * 100).toInt().coerceIn(0, 100)
         binding.seekRotBlur.progress = (config.rotationalBlurAmount * 100).toInt().coerceIn(0, 200)
 
-        // Update labels
-        binding.labelExposure.text = "Exposure Time: %.2f s".format(config.exposureTime)
-        binding.labelWbStrength.text = "WB Strength: %.2f".format(config.whiteBalanceStrength)
-        binding.labelWarmth.text = "Warmth: %.2f".format(config.warmth)
-        binding.labelSaturation.text = "Saturation: %.2f".format(config.saturation)
-        binding.labelObjectMotion.text = "Object Motion (depth): %.2f".format(config.objectMotionAmount)
-        binding.labelMotionBlur.text = "Motion Blur: %.2f".format(config.motionBlurAmount)
-        binding.labelDofAmount.text = "Depth of Field: %.2f".format(config.dofAmount)
-        binding.labelDofFocus.text = "DOF Focus: %.2f".format(config.dofFocus)
-        binding.labelDofSwirl.text = "DOF Swirl (Petzval): %.2f".format(config.dofSwirl)
-        binding.labelRotBlur.text = "Rotational Blur: %.2f".format(config.rotationalBlurAmount)
+        // Update value labels (names are static TextViews in the layout)
+        binding.labelExposure.text = "%.2f s".format(config.exposureTime)
+        binding.labelWbStrength.text = "%.2f".format(config.whiteBalanceStrength)
+        binding.labelWarmth.text = "%.2f".format(config.warmth)
+        binding.labelSaturation.text = "%.2f".format(config.saturation)
+        binding.labelObjectMotion.text = "%.2f".format(config.objectMotionAmount)
+        binding.labelMotionBlur.text = "%.2f".format(config.motionBlurAmount)
+        binding.labelDofAmount.text = "%.2f".format(config.dofAmount)
+        binding.labelDofFocus.text = "%.2f".format(config.dofFocus)
+        binding.labelDofSwirl.text = "%.2f".format(config.dofSwirl)
+        binding.labelRotBlur.text = "%.2f".format(config.rotationalBlurAmount)
 
         // Switches
         binding.switchGrain.isChecked = config.enableGrain

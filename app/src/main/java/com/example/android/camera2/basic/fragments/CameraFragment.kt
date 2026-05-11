@@ -165,6 +165,8 @@ class CameraFragment : Fragment() {
             navController.navigate(R.id.action_camera_to_settings)
         }
 
+        updateFilmInfoBar()
+
         fragmentCameraBinding.viewFinder.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
 
@@ -393,6 +395,15 @@ class CameraFragment : Fragment() {
         }
     }
 
+    /** Update the bottom film-info bar with the currently saved preset/style. */
+    private fun updateFilmInfoBar() {
+        val prefs = requireContext()
+            .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
+        val config = FilmrConfig.load(prefs)
+        val info = "${config.preset.manufacturer.uppercase()} · ${config.preset.displayName}"
+        fragmentCameraBinding.filmInfoText.text = info
+    }
+
     /** Apply the filmr film simulation engine to [bitmap]. Returns original on any failure. */
     private fun applyFilmrProcessing(bitmap: Bitmap): Bitmap {
         if (!FilmrEngine.isAvailable) return bitmap
@@ -462,6 +473,12 @@ class CameraFragment : Fragment() {
             }
             file
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Refresh in case user changed preset in settings
+        if (_fragmentCameraBinding != null) updateFilmInfoBar()
     }
 
     override fun onStop() {

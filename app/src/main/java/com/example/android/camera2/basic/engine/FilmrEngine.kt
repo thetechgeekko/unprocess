@@ -62,7 +62,8 @@ object FilmrEngine {
         dngBytes: ByteArray,
         presetKey: String,
         styleKey: String,
-        configJson: String
+        configJson: String,
+        modelPath: String
     ): ByteArray?
 
     @JvmStatic
@@ -160,16 +161,20 @@ object FilmrEngine {
      * from linear light before film simulation, rather than feeding a
      * pre-tone-mapped JPEG to filmr.
      *
+     * When [modelPath] is non-empty and the depth feature is compiled in,
+     * depth-aware DOF / motion blur is applied — matching [processWithDepth].
+     * Pass an empty string (the default) to skip depth estimation.
+     *
      * Returns null if the library is unavailable or decoding fails —
      * the caller should fall back to [process] with the JPEG companion.
      *
      * The JNI response encodes [width: i32 LE][height: i32 LE][RGB bytes].
      */
-    fun processFromDng(dngBytes: ByteArray, config: FilmrConfig): Bitmap? {
+    fun processFromDng(dngBytes: ByteArray, config: FilmrConfig, modelPath: String = ""): Bitmap? {
         if (!loaded) return null
         return try {
             val result = processRawDng(
-                dngBytes, config.preset.key, config.styleKey(), config.toSimConfigJson()
+                dngBytes, config.preset.key, config.styleKey(), config.toSimConfigJson(), modelPath
             ) ?: return null
             if (result.size < 8) return null
 

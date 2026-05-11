@@ -104,7 +104,8 @@ data class FilmrConfig(
     val dofSwirl: Float = 0.0f,
     val rotationalBlurAmount: Float = 0.0f,
     val autoLevels: Boolean = false,
-    val lightLeakEnabled: Boolean = false
+    val lightLeakEnabled: Boolean = false,
+    val jpegQuality: Int = 95
 ) {
     /** Serialize to the JSON format expected by Rust SimulationConfig. */
     fun toSimConfigJson(): String {
@@ -179,7 +180,8 @@ data class FilmrConfig(
             dofSwirl = prefs.getFloat("dof_swirl", 0.0f),
             rotationalBlurAmount = prefs.getFloat("rotational_blur_amount", 0.0f),
             autoLevels = prefs.getBoolean("auto_levels", false),
-            lightLeakEnabled = prefs.getBoolean("light_leak_enabled", false)
+            lightLeakEnabled = prefs.getBoolean("light_leak_enabled", false),
+            jpegQuality = prefs.getInt("jpeg_quality", 95)
         )
 
         fun save(config: FilmrConfig, prefs: SharedPreferences) {
@@ -202,6 +204,7 @@ data class FilmrConfig(
                 putFloat("rotational_blur_amount", config.rotationalBlurAmount)
                 putBoolean("auto_levels", config.autoLevels)
                 putBoolean("light_leak_enabled", config.lightLeakEnabled)
+                putInt("jpeg_quality", config.jpegQuality)
             }.apply()
         }
 

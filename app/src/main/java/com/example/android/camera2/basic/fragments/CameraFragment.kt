@@ -86,43 +86,30 @@ import android.provider.MediaStore
 
 class CameraFragment : Fragment() {
 
-    /** Android ViewBinding */
     private var _fragmentCameraBinding: FragmentCameraBinding? = null
-
     private val fragmentCameraBinding get() = _fragmentCameraBinding!!
 
-    /** AndroidX navigation arguments */
     private val args: CameraFragmentArgs by navArgs()
 
-    /** Host's navigation controller */
     private val navController: NavController by lazy {
         Navigation.findNavController(requireActivity(), R.id.fragment_container)
     }
 
-    /** Detects, characterizes, and connects to a CameraDevice (used for all camera operations) */
     private val cameraManager: CameraManager by lazy {
         val context = requireContext().applicationContext
         context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
     }
 
-    /** [CameraCharacteristics] corresponding to the provided Camera ID */
     private val characteristics: CameraCharacteristics by lazy {
         cameraManager.getCameraCharacteristics(args.cameraId)
     }
 
-    /** RAW_SENSOR ImageReader for DNG archival; null when not in RAW mode. */
     private var rawImageReader: ImageReader? = null
-
-    /** JPEG ImageReader used as the source for filmr processing. */
     private lateinit var jpegImageReader: ImageReader
 
-    /** [HandlerThread] where all camera operations run */
     private val cameraThread = HandlerThread("CameraThread").apply { start() }
-
-    /** [Handler] corresponding to [cameraThread] */
     private val cameraHandler = Handler(cameraThread.looper)
 
-    /** Performs recording animation of flashing screen */
     private val animationTask: Runnable by lazy {
         Runnable {
             fragmentCameraBinding.overlay.background = Color.argb(150, 255, 255, 255).toDrawable()
@@ -132,28 +119,16 @@ class CameraFragment : Fragment() {
         }
     }
 
-    /** [HandlerThread] where all buffer reading operations run */
     private val imageReaderThread = HandlerThread("imageReaderThread").apply { start() }
-
-    /** [Handler] corresponding to [imageReaderThread] */
     private val imageReaderHandler = Handler(imageReaderThread.looper)
 
-    /** The [CameraDevice] that will be opened in this fragment */
     private lateinit var camera: CameraDevice
-
-    /** Internal reference to the ongoing [CameraCaptureSession] configured with our parameters */
     private lateinit var session: CameraCaptureSession
-
-    /** Persistent preview request builder — reused for zoom and focus updates. */
     private lateinit var previewRequestBuilder: CaptureRequest.Builder
 
-    /** Current digital zoom level; 1.0 = no zoom. */
     private var currentZoom = 1.0f
-
-    /** Current zoom crop rect applied to preview and still captures. */
     private var zoomCropRect: Rect? = null
 
-    /** Live data listener for changes in the device orientation relative to the camera */
     private lateinit var relativeOrientation: OrientationLiveData
 
     override fun onCreateView(
@@ -173,13 +148,10 @@ class CameraFragment : Fragment() {
             v.translationY = (-insets.systemWindowInsetBottom).toFloat()
             insets.consumeSystemWindowInsets()
         }
-
         fragmentCameraBinding.settingsButton.setOnClickListener {
             navController.navigate(R.id.action_camera_to_settings)
         }
-
         updateFilmInfoBar()
-
         fragmentCameraBinding.viewFinder.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
             override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
@@ -193,7 +165,6 @@ class CameraFragment : Fragment() {
                 view.post { initializeCamera() }
             }
         })
-
         relativeOrientation = OrientationLiveData(requireContext(), characteristics).apply {
             observe(viewLifecycleOwner, Observer { orientation ->
                 Log.d(TAG, "Orientation changed: $orientation")
@@ -205,7 +176,6 @@ class CameraFragment : Fragment() {
         camera = openCamera(cameraManager, args.cameraId, cameraHandler)
 
         val streamConfigMap = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
-
         val rawOutputSizes = streamConfigMap.getOutputSizes(ImageFormat.RAW_SENSOR)
         val useRaw = args.pixelFormat == ImageFormat.RAW_SENSOR && rawOutputSizes != null
 
@@ -316,7 +286,6 @@ class CameraFragment : Fragment() {
             set(CaptureRequest.CONTROL_AF_TRIGGER, CaptureRequest.CONTROL_AF_TRIGGER_START)
         }
         session.capture(previewRequestBuilder.build(), null, cameraHandler)
-        // Reset trigger so subsequent repeating frames don't restart AF continuously
         previewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CaptureRequest.CONTROL_AF_TRIGGER_IDLE)
         session.setRepeatingRequest(previewRequestBuilder.build(), null, cameraHandler)
 
@@ -352,9 +321,7 @@ class CameraFragment : Fragment() {
 
     @SuppressLint("MissingPermission")
     private suspend fun openCamera(
-        manager: CameraManager,
-        cameraId: String,
-        handler: Handler? = null
+        manager: CameraManager, cameraId: String, handler: Handler? = null
     ): CameraDevice = suspendCancellableCoroutine { cont ->
         manager.openCamera(cameraId, object : CameraDevice.StateCallback() {
             override fun onOpened(device: CameraDevice) = cont.resume(device)
@@ -379,9 +346,7 @@ class CameraFragment : Fragment() {
     }
 
     private suspend fun createCaptureSession(
-        device: CameraDevice,
-        targets: List<Surface>,
-        handler: Handler? = null
+        device: CameraDevice, targets: List<Surface>, handler: Handler? = null
     ): CameraCaptureSession = suspendCoroutine { cont ->
         device.createCaptureSession(targets, object : CameraCaptureSession.StateCallback() {
             override fun onConfigured(session: CameraCaptureSession) = cont.resume(session)
@@ -429,7 +394,6 @@ class CameraFragment : Fragment() {
             .apply {
                 addTarget(jpegImageReader.surface)
                 if (isRawCapture) addTarget(rawReader!!.surface)
-                // Apply current zoom to still capture so it matches the viewfinder framing
                 zoomCropRect?.let { set(CaptureRequest.SCALER_CROP_REGION, it) }
             }
 
@@ -457,11 +421,9 @@ class CameraFragment : Fragment() {
                     try {
                         val jpegImage = jpegDeferred.await()
                         val rawImage = rawDeferred?.await()
-
                         imageReaderHandler.removeCallbacks(timeoutRunnable)
                         jpegImageReader.setOnImageAvailableListener(null, null)
                         rawReader?.setOnImageAvailableListener(null, null)
-
                         val rotation = relativeOrientation.value ?: 0
                         val mirrored = characteristics.get(CameraCharacteristics.LENS_FACING) ==
                                 CameraCharacteristics.LENS_FACING_FRONT
@@ -492,6 +454,10 @@ class CameraFragment : Fragment() {
     }
 
     private suspend fun saveResult(result: CombinedCaptureResult): File = suspendCoroutine { cont ->
+        val prefs = requireContext()
+            .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
+        val filmrConfig = FilmrConfig.load(prefs)
+
         when (result.format) {
             ImageFormat.RAW_SENSOR -> {
                 val rawImage = result.rawImage!!
@@ -508,10 +474,6 @@ class CameraFragment : Fragment() {
                         saveDngBytes(dngBytes, "RAW_$timestamp.dng")
                         Log.d(TAG, "Original DNG saved")
                     }
-
-                    val prefs = requireContext()
-                        .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
-                    val filmrConfig = FilmrConfig.load(prefs)
 
                     var bitmap: Bitmap? = FilmrEngine.processFromDng(dngBytes, filmrConfig)
                     val filmrAlreadyApplied = (bitmap != null)
@@ -531,7 +493,7 @@ class CameraFragment : Fragment() {
 
                     if (!filmrAlreadyApplied) bitmap = applyFilmrProcessing(bitmap)
 
-                    val savedFile = saveJpeg(bitmap, "IMG_$timestamp.jpg", result.orientation)
+                    val savedFile = saveJpeg(bitmap, "IMG_$timestamp.jpg", result.orientation, filmrConfig.jpegQuality)
                     bitmap.recycle()
                     cont.resume(savedFile)
 
@@ -557,7 +519,7 @@ class CameraFragment : Fragment() {
                     }
 
                     bitmap = applyFilmrProcessing(bitmap)
-                    val savedFile = saveJpeg(bitmap, "IMG_$timestamp.jpg", result.orientation)
+                    val savedFile = saveJpeg(bitmap, "IMG_$timestamp.jpg", result.orientation, filmrConfig.jpegQuality)
                     bitmap.recycle()
                     cont.resume(savedFile)
 
@@ -579,8 +541,8 @@ class CameraFragment : Fragment() {
         val prefs = requireContext()
             .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
         val config = FilmrConfig.load(prefs)
-        val info = "${config.preset.manufacturer.uppercase()} · ${config.preset.displayName}"
-        fragmentCameraBinding.filmInfoText.text = info
+        fragmentCameraBinding.filmInfoText.text =
+            "${config.preset.manufacturer.uppercase()} · ${config.preset.displayName}"
     }
 
     private fun applyFilmrProcessing(bitmap: Bitmap): Bitmap {
@@ -618,7 +580,7 @@ class CameraFragment : Fragment() {
         }
     }
 
-    private fun saveJpeg(bitmap: Bitmap, filename: String, orientation: Int): File {
+    private fun saveJpeg(bitmap: Bitmap, filename: String, orientation: Int, quality: Int = 95): File {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
@@ -628,7 +590,7 @@ class CameraFragment : Fragment() {
             val resolver = requireContext().contentResolver
             val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
                 ?: throw IOException("Failed to create MediaStore entry")
-            resolver.openOutputStream(uri)?.use { bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it) }
+            resolver.openOutputStream(uri)?.use { bitmap.compress(Bitmap.CompressFormat.JPEG, quality, it) }
             resolver.openFileDescriptor(uri, "rw")?.use { pfd ->
                 ExifInterface(pfd.fileDescriptor).apply {
                     setAttribute(ExifInterface.TAG_ORIENTATION, orientation.toString())
@@ -641,7 +603,7 @@ class CameraFragment : Fragment() {
             val dcim = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
             val folder = File(dcim, "Camera").apply { if (!exists()) mkdirs() }
             val file = File(folder, filename)
-            FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it) }
+            FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.JPEG, quality, it) }
             ExifInterface(file.absolutePath).apply {
                 setAttribute(ExifInterface.TAG_ORIENTATION, orientation.toString())
                 saveAttributes()

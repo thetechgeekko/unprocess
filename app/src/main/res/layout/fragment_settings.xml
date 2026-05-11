@@ -138,7 +138,6 @@
                     android:layout_marginBottom="10dp"
                     android:background="@color/filmr_border" />
 
-                <!-- labeled_slider: Exposure -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -176,7 +175,6 @@
                     android:layout_marginBottom="12dp"
                     android:background="@color/filmr_border" />
 
-                <!-- Film Grain switch -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -242,7 +240,6 @@
                     android:layout_marginBottom="10dp"
                     android:background="@color/filmr_border" />
 
-                <!-- labeled_slider: WB Strength -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -280,7 +277,6 @@
                     android:layout_marginBottom="12dp"
                     android:background="@color/filmr_border" />
 
-                <!-- labeled_slider: Warmth -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -318,7 +314,6 @@
                     android:layout_marginBottom="12dp"
                     android:background="@color/filmr_border" />
 
-                <!-- labeled_slider: Saturation -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -414,6 +409,44 @@
                         app:trackTint="@color/filmr_accent_dim" />
                 </LinearLayout>
 
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="@color/filmr_border" />
+
+                <!-- JPEG Quality slider (60–100) -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="JPEG Quality"
+                        android:textColor="@color/filmr_text_secondary"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/label_jpeg_quality"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="95"
+                        android:textColor="@color/filmr_text_primary"
+                        android:textSize="11sp" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/seek_jpeg_quality"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:max="40"
+                    android:progress="35"
+                    android:progressTint="@color/filmr_accent"
+                    android:thumbTint="@color/filmr_accent"
+                    android:progressBackgroundTint="@color/filmr_bg_hover" />
+
             </LinearLayout>
 
             <!-- ============================================================ -->
@@ -436,7 +469,6 @@
                 android:background="@drawable/bg_filmr_section"
                 android:padding="12dp">
 
-                <!-- Light Leak -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -465,7 +497,6 @@
                     android:layout_marginBottom="12dp"
                     android:background="@color/filmr_border" />
 
-                <!-- labeled_slider: Motion Blur -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -503,7 +534,6 @@
                     android:layout_marginBottom="12dp"
                     android:background="@color/filmr_border" />
 
-                <!-- labeled_slider: Rotational Blur -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -556,7 +586,6 @@
                 android:background="@drawable/bg_filmr_section"
                 android:padding="12dp">
 
-                <!-- labeled_slider: DOF Amount -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -594,7 +623,6 @@
                     android:layout_marginBottom="12dp"
                     android:background="@color/filmr_border" />
 
-                <!-- labeled_slider: DOF Focus -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -632,7 +660,6 @@
                     android:layout_marginBottom="12dp"
                     android:background="@color/filmr_border" />
 
-                <!-- labeled_slider: DOF Swirl (Petzval) -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -720,7 +747,6 @@
                     android:layout_marginBottom="12dp"
                     android:background="@color/filmr_border" />
 
-                <!-- labeled_slider: Object Motion (depth-based) -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

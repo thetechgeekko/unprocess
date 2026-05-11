@@ -200,7 +200,7 @@ class SettingsFragment : Fragment() {
             config = config.copy(saturation = v)
             "%.2f".format(v)
         }
-        // object_motion_amount  0.0 – 1.0  (depth-based, needs depth model)
+        // object_motion_amount  0.0 – 1.0
         setupSeekBar(binding.seekObjectMotion, binding.labelObjectMotion, 0, 100) { raw ->
             val v = raw / 100f
             config = config.copy(objectMotionAmount = v)
@@ -236,9 +236,14 @@ class SettingsFragment : Fragment() {
             config = config.copy(rotationalBlurAmount = v)
             "%.2f".format(v)
         }
+        // jpeg_quality  60 – 100  (seekbar 0-40, +60)
+        setupSeekBar(binding.seekJpegQuality, binding.labelJpegQuality, 0, 40) { raw ->
+            val v = raw + 60
+            config = config.copy(jpegQuality = v)
+            "$v"
+        }
     }
 
-    // label shows only the value (name is a separate static TextView in the layout)
     private fun setupSeekBar(
         seekBar: SeekBar,
         valueLabel: TextView,
@@ -358,7 +363,6 @@ class SettingsFragment : Fragment() {
             }
         )
 
-        // Sliders — convert float value → seekbar progress
         binding.seekExposure.progress = ((config.exposureTime * 100).toInt() - 10).coerceIn(0, 390)
         binding.seekWbStrength.progress = (config.whiteBalanceStrength * 100).toInt().coerceIn(0, 100)
         binding.seekWarmth.progress = ((config.warmth * 100) + 100).toInt().coerceIn(0, 200)
@@ -369,8 +373,8 @@ class SettingsFragment : Fragment() {
         binding.seekDofFocus.progress = (config.dofFocus * 100).toInt().coerceIn(0, 100)
         binding.seekDofSwirl.progress = (config.dofSwirl * 100).toInt().coerceIn(0, 100)
         binding.seekRotBlur.progress = (config.rotationalBlurAmount * 100).toInt().coerceIn(0, 200)
+        binding.seekJpegQuality.progress = (config.jpegQuality - 60).coerceIn(0, 40)
 
-        // Update value labels (names are static TextViews in the layout)
         binding.labelExposure.text = "%.2f s".format(config.exposureTime)
         binding.labelWbStrength.text = "%.2f".format(config.whiteBalanceStrength)
         binding.labelWarmth.text = "%.2f".format(config.warmth)
@@ -381,8 +385,8 @@ class SettingsFragment : Fragment() {
         binding.labelDofFocus.text = "%.2f".format(config.dofFocus)
         binding.labelDofSwirl.text = "%.2f".format(config.dofSwirl)
         binding.labelRotBlur.text = "%.2f".format(config.rotationalBlurAmount)
+        binding.labelJpegQuality.text = "${config.jpegQuality}"
 
-        // Switches
         binding.switchGrain.isChecked = config.enableGrain
         binding.switchAutoLevels.isChecked = config.autoLevels
         binding.switchLightLeak.isChecked = config.lightLeakEnabled

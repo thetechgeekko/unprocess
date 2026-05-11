@@ -58,6 +58,14 @@ object FilmrEngine {
     ): ByteArray?
 
     @JvmStatic
+    private external fun processRawDng(
+        dngBytes: ByteArray,
+        presetKey: String,
+        styleKey: String,
+        configJson: String
+    ): ByteArray?
+
+    @JvmStatic
     private external fun isDepthSupported(): Boolean
 
     @JvmStatic
@@ -99,6 +107,53 @@ object FilmrEngine {
      */
     fun processWithDepth(bitmap: Bitmap, config: FilmrConfig, modelPath: String): Bitmap =
         processInternal(bitmap, config, modelPath)
+
+    /**
+     * Decode a raw DNG file and apply filmr simulation in one JNI call.
+     *
+     * This is the high-quality path: the Bayer sensor data is demosaiced
+     * from linear light before film simulation, rather than feeding a
+     * pre-tone-mapped JPEG to filmr.
+     *
+     * Returns null if the library is unavailable or decoding fails —
+     * the caller should fall back to [process] with the JPEG companion.
+     *
+     * The JNI response encodes [width: i32 LE][height: i32 LE][RGB bytes].
+     */
+    fun processFromDng(dngBytes: ByteArray, config: FilmrConfig): Bitmap? {
+        if (!loaded) return null
+        return try {
+            val result = processRawDng(
+                dngBytes, config.preset.key, config.styleKey(), config.toSimConfigJson()
+            ) ?: return null
+            if (result.size < 8) return null
+
+            val w = (result[0].toInt() and 0xFF) or
+                    ((result[1].toInt() and 0xFF) shl 8) or
+                    ((result[2].toInt() and 0xFF) shl 16) or
+                    ((result[3].toInt() and 0xFF) shl 24)
+            val h = (result[4].toInt() and 0xFF) or
+                    ((result[5].toInt() and 0xFF) shl 8) or
+                    ((result[6].toInt() and 0xFF) shl 16) or
+                    ((result[7].toInt() and 0xFF) shl 24)
+
+            if (w <= 0 || h <= 0 || result.size < 8 + w * h * 3) return null
+
+            val pixels = IntArray(w * h)
+            for (i in pixels.indices) {
+                val r = result[8 + i * 3].toInt()     and 0xFF
+                val g = result[8 + i * 3 + 1].toInt() and 0xFF
+                val b = result[8 + i * 3 + 2].toInt() and 0xFF
+                pixels[i] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+            }
+            Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also {
+                it.setPixels(pixels, 0, w, 0, 0, w, h)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "processFromDng failed", e)
+            null
+        }
+    }
 
     private fun processInternal(bitmap: Bitmap, config: FilmrConfig, modelPath: String): Bitmap {
         if (!loaded) return bitmap

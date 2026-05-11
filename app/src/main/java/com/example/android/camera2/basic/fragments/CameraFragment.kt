@@ -431,18 +431,36 @@ class CameraFragment : Fragment() {
                         Log.d(TAG, "Original DNG saved")
                     }
 
-                    // Decode the simultaneously captured JPEG for filmr processing.
-                    val jpegPlane = result.image.planes[0]
-                    val jpegBytes = ByteArray(jpegPlane.buffer.remaining())
-                    jpegPlane.buffer.get(jpegBytes)
-                    var bitmap: Bitmap? = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
+                    // Preferred path: feed DNG bytes to filmr JNI for linear-Bayer simulation.
+                    // processFromDng demosaics the RAW data before filmr processes it, which is
+                    // physically correct (filmr models film chemistry in linear light).
+                    val prefs = requireContext()
+                        .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
+                    val filmrConfig = FilmrConfig.load(prefs)
+
+                    dngCreator.setOrientation(result.orientation)
+                    val dngStream = java.io.ByteArrayOutputStream()
+                    dngCreator.writeImage(dngStream, rawImage)
+
+                    var bitmap: Bitmap? = FilmrEngine.processFromDng(dngStream.toByteArray(), filmrConfig)
+                    val filmrAlreadyApplied = (bitmap != null)
 
                     if (bitmap == null) {
-                        cont.resumeWithException(IOException("Failed to decode JPEG companion image"))
+                        // Fallback: decode JPEG companion when libfilmr is absent or DNG decode fails.
+                        Log.d(TAG, "processFromDng unavailable, falling back to JPEG companion")
+                        val jpegPlane = result.image.planes[0]
+                        val jpegBytes = ByteArray(jpegPlane.buffer.remaining())
+                        jpegPlane.buffer.get(jpegBytes)
+                        bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
+                    }
+
+                    if (bitmap == null) {
+                        cont.resumeWithException(IOException("Failed to decode image from both DNG and JPEG paths"))
                         return@suspendCoroutine
                     }
 
-                    bitmap = applyFilmrProcessing(bitmap)
+                    // Apply filmr only on the JPEG fallback — the DNG path already ran it.
+                    if (!filmrAlreadyApplied) bitmap = applyFilmrProcessing(bitmap)
 
                     val savedFile = saveJpeg(bitmap, "IMG_$timestamp.jpg", result.orientation)
                     bitmap.recycle()

@@ -464,6 +464,13 @@ class CameraFragment : Fragment() {
         }, cameraHandler)
     }
 
+    private fun depthModelPath(config: FilmrConfig): String {
+        val modelFile = File(requireContext().filesDir, "models/${FilmrEngine.DEPTH_MODEL_FILENAME}")
+        return if (FilmrEngine.isDepthEstimationSupported && modelFile.exists() &&
+                   (config.dofAmount > 0f || config.objectMotionAmount > 0f))
+                   modelFile.absolutePath else ""
+    }
+
     private suspend fun saveResult(result: CombinedCaptureResult): File {
         val prefs = requireContext()
             .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
@@ -485,7 +492,8 @@ class CameraFragment : Fragment() {
                         Log.d(TAG, "Original DNG saved")
                     }
 
-                    var bitmap: Bitmap? = FilmrEngine.processFromDng(dngBytes, filmrConfig)
+                    val modelPath = depthModelPath(filmrConfig)
+                    var bitmap: Bitmap? = FilmrEngine.processFromDng(dngBytes, filmrConfig, modelPath)
                     val filmrAlreadyApplied = bitmap != null
 
                     if (!filmrAlreadyApplied) {
@@ -503,7 +511,7 @@ class CameraFragment : Fragment() {
                         ?: throw IOException("Failed to decode image from both DNG and JPEG paths")
 
                     val finalBitmap = if (!filmrAlreadyApplied) {
-                        val (processed, success) = applyFilmrProcessing(decoded)
+                        val (processed, success) = applyFilmrProcessing(decoded, filmrConfig)
                         if (!success && FilmrEngine.isAvailable) {
                             withContext(Dispatchers.Main) {
                                 showSnackbar("Film simulation failed — saved original")
@@ -530,7 +538,7 @@ class CameraFragment : Fragment() {
                 val rawBitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
                     ?: throw IOException("Failed to decode JPEG image")
 
-                val (finalBitmap, success) = applyFilmrProcessing(rawBitmap)
+                val (finalBitmap, success) = applyFilmrProcessing(rawBitmap, filmrConfig)
                 if (!success && FilmrEngine.isAvailable) {
                     withContext(Dispatchers.Main) {
                         showSnackbar("Film simulation failed — saved original")
@@ -554,17 +562,14 @@ class CameraFragment : Fragment() {
             "${config.preset.manufacturer.uppercase()} · ${config.preset.displayName}"
     }
 
-    private fun applyFilmrProcessing(bitmap: Bitmap): Pair<Bitmap, Boolean> {
+    private fun applyFilmrProcessing(bitmap: Bitmap, config: FilmrConfig? = null): Pair<Bitmap, Boolean> {
         if (!FilmrEngine.isAvailable) return Pair(bitmap, false)
         val prefs = requireContext()
             .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
-        val config = FilmrConfig.load(prefs)
-        Log.d(TAG, "Applying filmr: preset=${config.preset.key}, style=${config.styleKey()}")
-        val modelFile = java.io.File(requireContext().filesDir, "models/${FilmrEngine.DEPTH_MODEL_FILENAME}")
-        val modelPath = if (FilmrEngine.isDepthEstimationSupported && modelFile.exists() &&
-                           (config.dofAmount > 0f || config.objectMotionAmount > 0f))
-                           modelFile.absolutePath else ""
-        val (result, error) = FilmrEngine.processChecked(bitmap, config, modelPath)
+        val filmrConfig = config ?: FilmrConfig.load(prefs)
+        Log.d(TAG, "Applying filmr: preset=${filmrConfig.preset.key}, style=${filmrConfig.styleKey()}")
+        val modelPath = depthModelPath(filmrConfig)
+        val (result, error) = FilmrEngine.processChecked(bitmap, filmrConfig, modelPath)
         if (error != null) Log.e(TAG, "filmr processing error: $error")
         return Pair(result, error == null)
     }

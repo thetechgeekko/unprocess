@@ -352,7 +352,16 @@ class CameraFragment : Fragment() {
             ImageFormat.RAW_SENSOR -> {
                 val dngCreator = DngCreator(characteristics, result.metadata)
                 try {
-                    // Decode the RAW sensor data to a Bitmap via a temporary DNG
+                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+
+                    // When the user chose "Save as RAW", persist the original DNG for archival
+                    if (!args.convertToJpeg) {
+                        dngCreator.setOrientation(result.orientation)
+                        saveDng(dngCreator, result.image, "RAW_$timestamp.dng")
+                        Log.d(TAG, "Original DNG saved alongside processed JPEG")
+                    }
+
+                    // Decode RAW → Bitmap via a temporary DNG, then apply filmr
                     val tempDngFile = File(requireContext().cacheDir, "temp_raw.dng")
                     FileOutputStream(tempDngFile).use { dngCreator.writeImage(it, result.image) }
 
@@ -364,13 +373,9 @@ class CameraFragment : Fragment() {
                         return@suspendCoroutine
                     }
 
-                    // Apply filmr engine processing (no-op if native library is absent)
                     bitmap = applyFilmrProcessing(bitmap)
 
-                    // Save final JPEG (always — RAW-mode saves a filmr-processed JPEG too)
-                    val filename = "IMG_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())}.jpg"
-                    val savedFile = saveJpeg(bitmap, filename, result.orientation)
-
+                    val savedFile = saveJpeg(bitmap, "IMG_$timestamp.jpg", result.orientation)
                     bitmap.recycle()
                     cont.resume(savedFile)
 
@@ -396,6 +401,26 @@ class CameraFragment : Fragment() {
         val config = FilmrConfig.load(prefs)
         Log.d(TAG, "Applying filmr: preset=${config.preset.key}, style=${config.styleKey()}")
         return FilmrEngine.process(bitmap, config)
+    }
+
+    private fun saveDng(dngCreator: DngCreator, image: Image, filename: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                put(MediaStore.MediaColumns.MIME_TYPE, "image/x-adobe-dng")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DCIM}/Camera")
+            }
+            val resolver = requireContext().contentResolver
+            val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+                ?: throw IOException("Failed to create MediaStore DNG entry")
+            resolver.openOutputStream(uri)?.use { dngCreator.writeImage(it, image) }
+        } else {
+            val folder = File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
+                "Camera"
+            ).apply { if (!exists()) mkdirs() }
+            FileOutputStream(File(folder, filename)).use { dngCreator.writeImage(it, image) }
+        }
     }
 
     private fun saveJpeg(bitmap: Bitmap, filename: String, orientation: Int): File {

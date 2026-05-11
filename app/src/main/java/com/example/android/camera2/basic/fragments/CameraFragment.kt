@@ -26,6 +26,7 @@ import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CaptureFailure
 import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.CaptureResult
 import android.hardware.camera2.DngCreator
@@ -412,6 +413,20 @@ class CameraFragment : Fragment() {
                     }
                 }
             }
+
+            override fun onCaptureFailed(
+                session: CameraCaptureSession,
+                request: CaptureRequest,
+                failure: CaptureFailure
+            ) {
+                super.onCaptureFailed(session, request, failure)
+                val exc = IOException("Capture failed: reason=${failure.reason}")
+                Log.e(TAG, exc.message, exc)
+                jpegImageReader.setOnImageAvailableListener(null, null)
+                rawReader?.setOnImageAvailableListener(null, null)
+                if (jpegDeferred.isActive) jpegDeferred.completeExceptionally(exc)
+                if (rawDeferred?.isActive == true) rawDeferred.completeExceptionally(exc)
+            }
         }, cameraHandler)
     }
 
@@ -424,10 +439,15 @@ class CameraFragment : Fragment() {
                 try {
                     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
 
-                    // When the user chose "Save as RAW", persist the original DNG for archival.
+                    // Write DNG exactly once — DngCreator.writeImage may only be called once per instance.
+                    dngCreator.setOrientation(result.orientation)
+                    val dngStream = java.io.ByteArrayOutputStream()
+                    dngCreator.writeImage(dngStream, rawImage)
+                    val dngBytes = dngStream.toByteArray()
+
+                    // Persist the original DNG bytes when the user chose "Save as RAW".
                     if (!args.convertToJpeg) {
-                        dngCreator.setOrientation(result.orientation)
-                        saveDng(dngCreator, rawImage, "RAW_$timestamp.dng")
+                        saveDngBytes(dngBytes, "RAW_$timestamp.dng")
                         Log.d(TAG, "Original DNG saved")
                     }
 
@@ -438,11 +458,7 @@ class CameraFragment : Fragment() {
                         .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
                     val filmrConfig = FilmrConfig.load(prefs)
 
-                    dngCreator.setOrientation(result.orientation)
-                    val dngStream = java.io.ByteArrayOutputStream()
-                    dngCreator.writeImage(dngStream, rawImage)
-
-                    var bitmap: Bitmap? = FilmrEngine.processFromDng(dngStream.toByteArray(), filmrConfig)
+                    var bitmap: Bitmap? = FilmrEngine.processFromDng(dngBytes, filmrConfig)
                     val filmrAlreadyApplied = (bitmap != null)
 
                     if (bitmap == null) {
@@ -533,7 +549,7 @@ class CameraFragment : Fragment() {
         }
     }
 
-    private fun saveDng(dngCreator: DngCreator, image: Image, filename: String) {
+    private fun saveDngBytes(dngBytes: ByteArray, filename: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
@@ -543,13 +559,13 @@ class CameraFragment : Fragment() {
             val resolver = requireContext().contentResolver
             val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
                 ?: throw IOException("Failed to create MediaStore DNG entry")
-            resolver.openOutputStream(uri)?.use { dngCreator.writeImage(it, image) }
+            resolver.openOutputStream(uri)?.use { it.write(dngBytes) }
         } else {
             val folder = File(
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
                 "Camera"
             ).apply { if (!exists()) mkdirs() }
-            FileOutputStream(File(folder, filename)).use { dngCreator.writeImage(it, image) }
+            FileOutputStream(File(folder, filename)).use { it.write(dngBytes) }
         }
     }
 

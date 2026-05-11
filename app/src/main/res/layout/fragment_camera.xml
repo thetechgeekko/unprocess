@@ -16,6 +16,15 @@
         android:layout_height="match_parent"
         android:foreground="@android:color/transparent" />
 
+    <!-- Tap-to-focus ring: positioned programmatically at the touch point -->
+    <ImageView
+        android:id="@+id/focus_ring"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:src="@drawable/ic_focus_ring"
+        android:visibility="gone"
+        android:contentDescription="@null" />
+
     <!-- Settings button — top-right, FILMr style with amber accent ring -->
     <ImageButton
         android:id="@+id/settings_button"

@@ -306,7 +306,7 @@ class SettingsFragment : Fragment() {
                     conn.connectTimeout = 30_000
                     conn.readTimeout = 60_000
                     conn.connect()
-                    val totalBytes = conn.contentLengthLong
+                    val totalBytes = conn.contentLength.toLong()
                         .takeIf { len -> len > 0L } ?: FilmrEngine.DEPTH_MODEL_SIZE_BYTES
                     val totalMB = totalBytes / 1_048_576f
 

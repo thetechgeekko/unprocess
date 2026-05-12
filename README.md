@@ -2,37 +2,34 @@
 
 # unprocess
 
-A simple, open-source Android camera app that saves photos free of modern
-devices' excessive computational photography. Uses the Camera2 API to capture
-raw sensor data, optionally running it through the
-[filmr](https://github.com/thetechgeekko/filmr) film-simulation engine to
-apply authentic analog film looks.
+An open-source Android camera app that captures photos free of computational photography processing. unprocess uses the Camera2 API to capture raw sensor data (DNG) and feeds it through [filmr](https://github.com/thetechgeekko/filmr) — a physics-based Rust film simulation engine — to produce images with the characteristic grain, tone, and color of specific analog film stocks.
 
 ## Features
 
-- RAW (DNG) or JPEG capture
-- 30+ film stock presets via filmr (Kodak Portra, Fujifilm Velvia, Ilford HP5+, …)
-- Malvar-He-Cutler demosaic + DNG ColorMatrix colour correction on the RAW path
-- Depth-aware DOF and object-motion blur (optional — requires depth model download)
-- Tap-to-focus and pinch-to-zoom
-- Per-capture progress overlay and Snackbar error reporting
+- **RAW (DNG) or JPEG capture** — dual-stream (JPEG + RAW_SENSOR simultaneously); RAW path uses Rust Bayer demosaic for maximum quality
+- **30+ film stock presets** — Kodak Portra, Fujifilm Velvia, Ilford HP5+, Kodachrome, and more across 5 style variants
+- **Depth-aware effects** (optional) — shallow DOF with Petzval swirl and object-motion blur powered by Depth Anything V2
+- **Tap-to-focus** and **pinch-to-zoom** via Camera2 metering rectangles and SCALER_CROP_REGION
+- **Full settings panel** — sliders for exposure, white balance, saturation, grain, motion blur, DOF, JPEG quality; real-time SharedPreferences persistence
+- **EXIF preservation** — sensor orientation correctly embedded in all output files
+- **Graceful degradation** — app runs without `libfilmr.so`; film simulation is silently disabled with a one-time Snackbar notice
 
 ## Prerequisites
 
 | Tool | Version |
 |------|---------|
 | Android Studio | Hedgehog (2023.1.1) or later |
-| Android SDK | API 29+ (minSdk 29, targetSdk 34) |
+| Android SDK | API 34 (minSdk 29) |
 | Rust toolchain | stable (1.75+) |
 | cargo-ndk | 3.x (`cargo install cargo-ndk`) |
-| Android NDK | r25c or r26 (`ANDROID_NDK_HOME` must be set) |
+| Android NDK | r25c or r26 (`ANDROID_NDK_ROOT` must be set) |
+| JDK | 17+ |
 
-## Getting started
+## Getting Started
 
 ### 1 — Clone both repos as siblings
 
-The filmr build script outputs `.so` files directly into `../unprocess/app/src/main/jniLibs/`,
-so both repos must live in the same parent directory.
+The filmr build script outputs `.so` files directly into `../unprocess/app/src/main/jniLibs/`, so both repos must live in the same parent directory.
 
 ```bash
 git clone https://github.com/thetechgeekko/filmr
@@ -54,17 +51,17 @@ rustup target add \
 ```bash
 cd filmr
 
-# Release build — film simulation only (no depth estimation)
+# Film simulation only (~4 MB per ABI)
 ./android/build-android.sh
 
-# Release build — film simulation + Depth Anything V2 DOF/motion blur
+# With Depth Anything V2 DOF/motion blur (~20 MB per ABI)
 ./android/build-android.sh --with-depth
 
-# Debug build (faster compile, slower at runtime)
+# Debug build (faster compile, slower runtime)
 ./android/build-android.sh --debug
 ```
 
-The script places `libfilmr.so` for each ABI into:
+Output:
 ```
 ../unprocess/app/src/main/jniLibs/
   arm64-v8a/libfilmr.so
@@ -75,61 +72,55 @@ The script places `libfilmr.so` for each ABI into:
 
 ### 4 — Open and run in Android Studio
 
-1. Open the `unprocess/` directory in Android Studio.
-2. Let Gradle sync (it does **not** need to build filmr — the `.so` files are already in `jniLibs/`).
-3. Connect a physical device or start an emulator.
-4. Click **Run**.
+> **⚠️ Physical device required.** Camera2 RAW capture does not work on emulators.
 
-If `libfilmr.so` is absent the app still launches; film simulation is silently
-disabled and a one-time Snackbar informs the user.
+1. Open the `unprocess/` directory in Android Studio
+2. Let Gradle sync (the `.so` files are already in `jniLibs/` — no Rust build needed)
+3. Connect a physical Android device with a RAW-capable camera
+4. Click **Run**
 
-## Architecture overview
+## Architecture
 
-```
-CameraFragment
-  ├── Camera2 dual-stream capture (JPEG + RAW_SENSOR)
-  ├── DngCreator  →  FilmrEngine.processFromDng()   (RAW path, MHC demosaic)
-  └── BitmapFactory  →  FilmrEngine.processChecked() (JPEG path)
+The app follows a linear fragment flow: `PermissionsFragment` → `SelectorFragment` (enumerates RAW-capable cameras) → `CameraFragment` ↔ `SettingsFragment`, with `ImageViewerFragment` for reviewing captures. Navigation uses Safe Args; `SelectorFragment` passes `camera_id`, `pixel_format`, and `convert_to_jpeg` to `CameraFragment`.
 
-FilmrEngine (Kotlin singleton)
-  ├── System.loadLibrary("filmr")           — loads libfilmr.so at startup
-  ├── processImage()          → JNI → Rust  — JPEG/bitmap film simulation
-  ├── processImageWithDepth() → JNI → Rust  — as above + depth DOF/motion
-  └── processRawDng()         → JNI → Rust  — DNG demosaic + film simulation
+On capture, `CameraFragment` fires a dual-stream `CaptureRequest` (JPEG + RAW_SENSOR simultaneously), awaits both `CompletableDeferred` results on a background `HandlerThread` (5 s timeout), then calls `saveResult()` on `Dispatchers.IO`. The RAW path runs `DngCreator.writeImage()` → `FilmrEngine.processFromDng()` (Bayer demosaic + film simulation in Rust), falling back to the JPEG companion if unavailable. The JPEG path runs `BitmapFactory.decodeByteArray()` → `FilmrEngine.processChecked()`. See [CLAUDE.md](CLAUDE.md) for the full capture flow and thread model.
 
-FilmrConfig (Kotlin data class)
-  ├── Saved to SharedPreferences
-  ├── Serialised to JSON for the Rust SimulationConfig
-  └── Editable from SettingsFragment
+### Key Classes
 
-libfilmr.so (Rust, cross-compiled with cargo-ndk)
-  ├── src/android.rs   — JNI entry points + DNG decode pipeline
-  ├── src/processor.rs — core film simulation
-  └── src/depth/       — Depth Anything V2 (feature = "depth" only)
-```
+| Class | Responsibility |
+|-------|---------------|
+| `CameraFragment` | Camera2 session management, dual-stream capture, focus/zoom gestures, file saving |
+| `FilmrEngine` | JNI singleton wrapping `libfilmr.so`; no-op if library absent |
+| `FilmrConfig` | Film parameters data class; 49-entry `FilmPreset` enum; serialises to Rust JSON |
+| `SettingsFragment` | Film settings UI; all controls write to SharedPreferences immediately |
+| `ImageViewerFragment` | EXIF-corrected image display; depth/confidence map overlay via ViewPager2 |
+| `OrientationLiveData` | Device orientation LiveData; computes relative rotation to camera sensor |
 
-## Depth estimation (optional)
+### Settings Persistence
 
-Depth-aware DOF simulation and object-motion blur require the
-`depth_anything_v2_vits.rten` model (~95 MB). Download it from inside the
-app:
+All settings are stored immediately in SharedPreferences key `"filmr_settings"`. Enums are persisted by `.name` (not `.ordinal`) for safety across refactors. `FilmrConfig.load()` / `FilmrConfig.save()` are the only persistence entry points.
 
-1. Tap **Settings** (gear icon on the camera screen).
-2. Scroll to **Depth Estimation** and tap **Download model**.
-3. A progress bar shows download progress. Once complete, DOF and
-   object-motion effects activate whenever their sliders are above zero.
+## Depth Estimation (Optional)
 
-The depth model is only used when `libfilmr.so` was compiled with
-`--with-depth`. If it was built without that flag `isDepthSupported()`
-returns false and depth settings are hidden.
+Requires `libfilmr.so` compiled with `--with-depth`. Download the ~95 MB `depth_anything_v2_vits.rten` model inside the app:
 
-## Feature flags
+1. Tap **Settings** (gear icon)
+2. Scroll to **Depth Estimation** → tap **Download model**
+3. A progress bar tracks the download. Once complete, DOF and object-motion sliders become depth-aware
 
-| Build flag | Effect |
-|------------|--------|
-| `android` (default) | Film simulation only. Smaller binary (~4 MB per ABI). |
-| `android,depth` (`--with-depth`) | Adds Depth Anything V2 monocular depth estimation. Larger binary (~20 MB per ABI). |
+If `isDepthSupported()` returns false (library built without depth feature), depth settings are hidden. The model is loaded only when `dofAmount > 0` or `objectMotionAmount > 0`.
 
-## Support
+## Feature Flags
 
-Patches welcome — fork the repo and open a pull request.
+| Build flag | Binary size | Effect |
+|------------|-------------|--------|
+| `android` (default) | ~4 MB/ABI | Film simulation only |
+| `android,depth` (`--with-depth`) | ~20 MB/ABI | + Depth Anything V2 monocular depth |
+
+## CI
+
+The Android workflow (`.github/workflows/android.yml`) checks out filmr and unprocess as siblings, cross-compiles all four ABIs with NDK r25c, runs lint, unit tests, and assembles a debug APK. Release APKs are built and uploaded to GitHub Releases on `v*` tags.
+
+## Contributing
+
+Preset calibration and new film stocks belong in the [filmr](https://github.com/thetechgeekko/filmr) repository. Camera, UI, and Android-specific changes belong here. Patches welcome — open a pull request.

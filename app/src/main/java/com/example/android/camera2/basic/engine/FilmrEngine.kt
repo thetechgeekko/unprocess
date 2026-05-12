@@ -187,9 +187,10 @@ object FilmrEngine {
                     ((result[6].toInt() and 0xFF) shl 16) or
                     ((result[7].toInt() and 0xFF) shl 24)
 
-            if (w <= 0 || h <= 0 || result.size < 8 + w * h * 3) return null
+            val pixelCount = w.toLong() * h.toLong()
+            if (w <= 0 || h <= 0 || result.size.toLong() < 8L + pixelCount * 3L) return null
 
-            val pixels = IntArray(w * h)
+            val pixels = IntArray(pixelCount.toInt())
             for (i in pixels.indices) {
                 val r = result[8 + i * 3].toInt()     and 0xFF
                 val g = result[8 + i * 3 + 1].toInt() and 0xFF

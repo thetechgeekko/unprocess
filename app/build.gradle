@@ -16,7 +16,7 @@
 
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-kapt'
+apply plugin: 'kotlin-kapt' // TODO: migrate from kapt to KSP for better build performance
 apply plugin: "androidx.navigation.safeargs"
 
 android {
@@ -42,7 +42,7 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.debug
         }
@@ -105,6 +105,13 @@ if (!skipFilmrBuild && filmrDir.exists()) {
 }
 
 dependencies {
+    // Exclude Robolectric's native-binary jar from all configurations to prevent
+    // Jetifier from attempting to transform a jar that contains only .so files.
+    // Robolectric falls back to its Java-stub path without this jar.
+    configurations.configureEach {
+        exclude group: 'org.robolectric', module: 'nativeruntime-dist-compat'
+    }
+
     implementation project(':utils')
 
     // Kotlin lang

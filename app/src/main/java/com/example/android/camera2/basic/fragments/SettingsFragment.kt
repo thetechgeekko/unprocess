@@ -21,7 +21,9 @@ import com.reilandeubank.unprocess.engine.FilmrEngine
 import com.reilandeubank.unprocess.engine.OutputMode
 import com.reilandeubank.unprocess.engine.SimulationMode
 import com.reilandeubank.unprocess.engine.WhiteBalanceMode
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -293,14 +295,18 @@ class SettingsFragment : Fragment() {
             binding.progressDepthModel.progress = 0
             binding.progressDepthModel.visibility = View.VISIBLE
             binding.labelDepthModelStatus.text = "Connecting…"
+            // Capture context-dependent file path on the main thread before switching to IO
+            val destFile = depthModelFile()
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    val dest = depthModelFile().also { f -> f.parentFile?.mkdirs() }
+                    val dest = destFile.also { f -> f.parentFile?.mkdirs() }
                     val tmp = File(dest.parent, dest.name + ".tmp")
 
                     val conn = URL(FilmrEngine.DEPTH_MODEL_URL).openConnection() as HttpURLConnection
+                    conn.connectTimeout = 30_000
+                    conn.readTimeout = 60_000
                     conn.connect()
-                    val totalBytes = conn.contentLengthLong
+                    val totalBytes = conn.contentLength.toLong()
                         .takeIf { len -> len > 0L } ?: FilmrEngine.DEPTH_MODEL_SIZE_BYTES
                     val totalMB = totalBytes / 1_048_576f
 
@@ -310,7 +316,7 @@ class SettingsFragment : Fragment() {
 
                     conn.inputStream.use { input ->
                         tmp.outputStream().use { output ->
-                            while (true) {
+                            while (isActive) {
                                 val n = input.read(buffer)
                                 if (n == -1) break
                                 output.write(buffer, 0, n)
@@ -382,8 +388,8 @@ class SettingsFragment : Fragment() {
     private fun restoreValues() {
         restoring = true
 
-        binding.spinnerPreset.setSelection(config.preset.ordinal)
-        binding.spinnerStyle.setSelection(config.filmStyle.ordinal)
+        binding.spinnerPreset.setSelection(FilmPreset.entries.indexOf(config.preset))
+        binding.spinnerStyle.setSelection(FilmStyle.entries.indexOf(config.filmStyle))
         binding.spinnerSimMode.setSelection(
             if (config.simulationMode == SimulationMode.ACCURATE) 0 else 1
         )

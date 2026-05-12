@@ -60,11 +60,13 @@ jobs:
       # -----------------------------------------------------------------------
       # Build native library
       # -----------------------------------------------------------------------
-    - name: Build libfilmr.so for all ABIs
-  working-directory: filmr
-  env:
-    ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-  run: bash ./android/build-android.sh
+      - name: Build libfilmr.so for all ABIs
+        working-directory: filmr
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          chmod +x android/build-android.sh
+          ./android/build-android.sh
 
       # -----------------------------------------------------------------------
       # Android build
@@ -85,7 +87,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('unprocess/**/*.gradle*', 'unprocess/**/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('unprocess/**/*.gradle*', 'unprocess/**/gradle-wrapper.properties', 'unprocess/gradle.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
       - name: Run Android lint

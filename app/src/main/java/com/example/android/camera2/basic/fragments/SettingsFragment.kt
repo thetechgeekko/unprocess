@@ -294,9 +294,11 @@ class SettingsFragment : Fragment() {
             binding.progressDepthModel.progress = 0
             binding.progressDepthModel.visibility = View.VISIBLE
             binding.labelDepthModelStatus.text = "Connecting…"
+            // Capture context-dependent file path on the main thread before switching to IO
+            val destFile = depthModelFile()
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    val dest = depthModelFile().also { f -> f.parentFile?.mkdirs() }
+                    val dest = destFile.also { f -> f.parentFile?.mkdirs() }
                     val tmp = File(dest.parent, dest.name + ".tmp")
 
                     val conn = URL(FilmrEngine.DEPTH_MODEL_URL).openConnection() as HttpURLConnection

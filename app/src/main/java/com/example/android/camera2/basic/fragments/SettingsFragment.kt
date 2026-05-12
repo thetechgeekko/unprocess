@@ -21,6 +21,7 @@ import com.reilandeubank.unprocess.engine.FilmrEngine
 import com.reilandeubank.unprocess.engine.OutputMode
 import com.reilandeubank.unprocess.engine.SimulationMode
 import com.reilandeubank.unprocess.engine.WhiteBalanceMode
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch

@@ -60,11 +60,11 @@ jobs:
       # -----------------------------------------------------------------------
       # Build native library
       # -----------------------------------------------------------------------
-      - name: Build libfilmr.so for all ABIs
-        working-directory: filmr
-        env:
-          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-        run: ./android/build-android.sh
+    - name: Build libfilmr.so for all ABIs
+  working-directory: filmr
+  env:
+    ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+  run: bash ./android/build-android.sh
 
       # -----------------------------------------------------------------------
       # Android build

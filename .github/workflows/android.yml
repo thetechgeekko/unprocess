@@ -87,7 +87,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('unprocess/**/*.gradle*', 'unprocess/**/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('unprocess/**/*.gradle*', 'unprocess/**/gradle-wrapper.properties', 'unprocess/gradle.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
       - name: Run Android lint

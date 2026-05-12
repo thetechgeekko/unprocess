@@ -109,10 +109,22 @@ data class FilmrConfig(
 ) {
     /** Serialize to the JSON format expected by Rust SimulationConfig. */
     fun toSimConfigJson(): String {
-        val lightLeakJson = if (lightLeakEnabled) {
-            """{"enabled":true,"leaks":[{"position":[0.1,0.1],"color":[1.0,0.5,0.2],"radius":0.4,"intensity":0.3,"shape":"Circle","rotation":0.0,"roughness":0.5}]}"""
-        } else {
-            """{"enabled":false,"leaks":[]}"""
+        val lightLeakObject = JSONObject().apply {
+            put("enabled", lightLeakEnabled)
+            if (lightLeakEnabled) {
+                val leak = JSONObject().apply {
+                    put("position", JSONArray().apply { put(0.1); put(0.1) })
+                    put("color", JSONArray().apply { put(1.0); put(0.5); put(0.2) })
+                    put("radius", 0.4)
+                    put("intensity", 0.3)
+                    put("shape", "Circle")
+                    put("rotation", 0.0)
+                    put("roughness", 0.5)
+                }
+                put("leaks", JSONArray().apply { put(leak) })
+            } else {
+                put("leaks", JSONArray())
+            }
         }
         return JSONObject().run {
             put("simulation_mode", if (simulationMode == SimulationMode.FAST) "Fast" else "Accurate")
@@ -129,9 +141,9 @@ data class FilmrConfig(
             put("white_balance_strength", whiteBalanceStrength.toDouble())
             put("warmth", warmth.toDouble())
             put("saturation", saturation.toDouble())
-            put("light_leak", JSONObject(lightLeakJson))
+            put("light_leak", lightLeakObject)
             put("motion_blur_amount", motionBlurAmount.toDouble())
-            put("motion_blur_seed", 42)
+            put("motion_blur_seed", System.currentTimeMillis())
             put("object_motion_amount", objectMotionAmount.toDouble())
             put("auto_levels", autoLevels)
             put("dof_amount", dofAmount.toDouble())
@@ -153,23 +165,33 @@ data class FilmrConfig(
 
     companion object {
         fun load(prefs: SharedPreferences): FilmrConfig = FilmrConfig(
-            preset = FilmPreset.entries.getOrElse(
-                prefs.getInt("preset_ordinal", FilmPreset.KODAK_PORTRA_400.ordinal)
-            ) { FilmPreset.KODAK_PORTRA_400 },
-            filmStyle = FilmStyle.entries.getOrElse(
-                prefs.getInt("film_style_ordinal", FilmStyle.ACCURATE.ordinal)
-            ) { FilmStyle.ACCURATE },
-            simulationMode = SimulationMode.entries.getOrElse(
-                prefs.getInt("simulation_mode_ordinal", SimulationMode.ACCURATE.ordinal)
-            ) { SimulationMode.ACCURATE },
+            preset = runCatching {
+                FilmPreset.valueOf(
+                    prefs.getString("preset_name", FilmPreset.KODAK_PORTRA_400.name)!!
+                )
+            }.getOrDefault(FilmPreset.KODAK_PORTRA_400),
+            filmStyle = runCatching {
+                FilmStyle.valueOf(
+                    prefs.getString("film_style_name", FilmStyle.ACCURATE.name)!!
+                )
+            }.getOrDefault(FilmStyle.ACCURATE),
+            simulationMode = runCatching {
+                SimulationMode.valueOf(
+                    prefs.getString("simulation_mode_name", SimulationMode.ACCURATE.name)!!
+                )
+            }.getOrDefault(SimulationMode.ACCURATE),
             exposureTime = prefs.getFloat("exposure_time", 1.0f),
             enableGrain = prefs.getBoolean("enable_grain", true),
-            outputMode = OutputMode.entries.getOrElse(
-                prefs.getInt("output_mode_ordinal", OutputMode.POSITIVE.ordinal)
-            ) { OutputMode.POSITIVE },
-            whiteBalanceMode = WhiteBalanceMode.entries.getOrElse(
-                prefs.getInt("wb_mode_ordinal", WhiteBalanceMode.AUTO.ordinal)
-            ) { WhiteBalanceMode.AUTO },
+            outputMode = runCatching {
+                OutputMode.valueOf(
+                    prefs.getString("output_mode_name", OutputMode.POSITIVE.name)!!
+                )
+            }.getOrDefault(OutputMode.POSITIVE),
+            whiteBalanceMode = runCatching {
+                WhiteBalanceMode.valueOf(
+                    prefs.getString("wb_mode_name", WhiteBalanceMode.AUTO.name)!!
+                )
+            }.getOrDefault(WhiteBalanceMode.AUTO),
             whiteBalanceStrength = prefs.getFloat("wb_strength", 1.0f),
             warmth = prefs.getFloat("warmth", 0.0f),
             saturation = prefs.getFloat("saturation", 1.0f),
@@ -186,13 +208,13 @@ data class FilmrConfig(
 
         fun save(config: FilmrConfig, prefs: SharedPreferences) {
             prefs.edit().apply {
-                putInt("preset_ordinal", config.preset.ordinal)
-                putInt("film_style_ordinal", config.filmStyle.ordinal)
-                putInt("simulation_mode_ordinal", config.simulationMode.ordinal)
+                putString("preset_name", config.preset.name)
+                putString("film_style_name", config.filmStyle.name)
+                putString("simulation_mode_name", config.simulationMode.name)
                 putFloat("exposure_time", config.exposureTime)
                 putBoolean("enable_grain", config.enableGrain)
-                putInt("output_mode_ordinal", config.outputMode.ordinal)
-                putInt("wb_mode_ordinal", config.whiteBalanceMode.ordinal)
+                putString("output_mode_name", config.outputMode.name)
+                putString("wb_mode_name", config.whiteBalanceMode.name)
                 putFloat("wb_strength", config.whiteBalanceStrength)
                 putFloat("warmth", config.warmth)
                 putFloat("saturation", config.saturation)

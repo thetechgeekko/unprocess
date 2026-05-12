@@ -22,6 +22,7 @@ import com.reilandeubank.unprocess.engine.OutputMode
 import com.reilandeubank.unprocess.engine.SimulationMode
 import com.reilandeubank.unprocess.engine.WhiteBalanceMode
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -299,6 +300,8 @@ class SettingsFragment : Fragment() {
                     val tmp = File(dest.parent, dest.name + ".tmp")
 
                     val conn = URL(FilmrEngine.DEPTH_MODEL_URL).openConnection() as HttpURLConnection
+                    conn.connectTimeout = 30_000
+                    conn.readTimeout = 60_000
                     conn.connect()
                     val totalBytes = conn.contentLengthLong
                         .takeIf { len -> len > 0L } ?: FilmrEngine.DEPTH_MODEL_SIZE_BYTES
@@ -310,7 +313,7 @@ class SettingsFragment : Fragment() {
 
                     conn.inputStream.use { input ->
                         tmp.outputStream().use { output ->
-                            while (true) {
+                            while (isActive) {
                                 val n = input.read(buffer)
                                 if (n == -1) break
                                 output.write(buffer, 0, n)
@@ -382,8 +385,8 @@ class SettingsFragment : Fragment() {
     private fun restoreValues() {
         restoring = true
 
-        binding.spinnerPreset.setSelection(config.preset.ordinal)
-        binding.spinnerStyle.setSelection(config.filmStyle.ordinal)
+        binding.spinnerPreset.setSelection(FilmPreset.entries.indexOf(config.preset))
+        binding.spinnerStyle.setSelection(FilmStyle.entries.indexOf(config.filmStyle))
         binding.spinnerSimMode.setSelection(
             if (config.simulationMode == SimulationMode.ACCURATE) 0 else 1
         )

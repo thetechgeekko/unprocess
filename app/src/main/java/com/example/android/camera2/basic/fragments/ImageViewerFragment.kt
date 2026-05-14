@@ -30,7 +30,7 @@ import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
-import android.widget.ImageView
+import androidx.appcompat.widget.AppCompatImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.FileProvider
@@ -91,7 +91,7 @@ class ImageViewerFragment : Fragment() {
      * ZoomableImageView — an ImageView that supports pinch-to-zoom via ScaleGestureDetector.
      * Scale range is 1.0x to 5.0x. Uses MATRIX scaleType to apply zoom.
      */
-    inner class ZoomableImageView(context: Context) : ImageView(context) {
+    inner class ZoomableImageView(context: Context) : AppCompatImageView(context) {
 
         private val matrix = Matrix()
         private var currentScale = 1f

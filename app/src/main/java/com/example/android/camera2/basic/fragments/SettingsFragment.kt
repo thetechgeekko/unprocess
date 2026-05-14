@@ -294,6 +294,8 @@ class SettingsFragment : Fragment() {
             it.isEnabled = false
             binding.progressDepthModel.progress = 0
             binding.progressDepthModel.visibility = View.VISIBLE
+            binding.depthDownloadMbText.text = ""
+            binding.depthDownloadMbText.visibility = View.VISIBLE
             binding.labelDepthModelStatus.text = "Connecting…"
             // Capture context-dependent file path on the main thread before switching to IO
             val destFile = depthModelFile()
@@ -326,9 +328,9 @@ class SettingsFragment : Fragment() {
                                     lastReportedMB = downloadedMB
                                     val pct = ((downloadedBytes.toFloat() / totalBytes) * 100).toInt()
                                     withContext(Dispatchers.Main) {
-                                        binding.labelDepthModelStatus.text =
-                                            "%.0f / %.0f MB".format(downloadedMB.toFloat(), totalMB)
                                         binding.progressDepthModel.progress = pct
+                                        binding.depthDownloadMbText.text =
+                                            "%.0f / %.0f MB".format(downloadedMB.toFloat(), totalMB)
                                     }
                                 }
                             }
@@ -337,11 +339,13 @@ class SettingsFragment : Fragment() {
                     tmp.renameTo(dest)
                     withContext(Dispatchers.Main) {
                         binding.progressDepthModel.visibility = View.GONE
+                        binding.depthDownloadMbText.visibility = View.GONE
                         refreshDepthModelStatus()
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
                         binding.progressDepthModel.visibility = View.GONE
+                        binding.depthDownloadMbText.visibility = View.GONE
                         binding.labelDepthModelStatus.text = "Download failed: ${e.message}"
                         binding.btnDownloadDepthModel.isEnabled = true
                     }
@@ -352,6 +356,7 @@ class SettingsFragment : Fragment() {
 
     private fun refreshDepthModelStatus() {
         binding.progressDepthModel.visibility = View.GONE
+        binding.depthDownloadMbText.visibility = View.GONE
         val f = depthModelFile()
         if (!FilmrEngine.isDepthEstimationSupported) {
             binding.labelDepthModelStatus.text =

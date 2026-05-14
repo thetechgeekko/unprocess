@@ -19,6 +19,7 @@ package com.reilandeubank.unprocess.fragments
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.ImageFormat
 import android.graphics.Rect
@@ -646,7 +647,7 @@ class CameraFragment : Fragment() {
             ImageFormat.JPEG -> {
                 val buffer = result.image.planes[0].buffer
                 val jpegBytes = ByteArray(buffer.remaining()).also { buffer.get(it) }
-                var bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
+                val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
                     ?: throw IOException("Failed to decode JPEG from capture")
                 val processed = withContext(Dispatchers.IO) {
                     FilmrEngine.processChecked(bitmap, filmrConfig).first

@@ -16,27 +16,35 @@
 
 package com.reilandeubank.unprocess.fragments
 
+import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
+import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.ViewGroup
-import android.util.Log
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.ImageView
+import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.navArgs
 import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
+import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.reilandeubank.unprocess.R
 import com.reilandeubank.unprocess.utils.GenericListAdapter
 import com.reilandeubank.unprocess.utils.decodeExifOrientation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.BufferedInputStream
 import java.io.File
+import java.io.FileOutputStream
 import kotlin.math.max
 
 
@@ -65,53 +73,190 @@ class ImageViewerFragment : Fragment() {
     /** Data backing our Bitmap viewpager */
     private val bitmapList: MutableList<Bitmap> = mutableListOf()
 
-    private fun imageViewFactory() = ImageView(requireContext()).apply {
+    /** Reference to the ViewPager2 from the inflated layout */
+    private lateinit var viewPager: ViewPager2
+
+    /**
+     * ZoomableImageView — an ImageView that supports pinch-to-zoom via ScaleGestureDetector.
+     * Scale range is 1.0x to 5.0x. Uses MATRIX scaleType to apply zoom.
+     */
+    inner class ZoomableImageView(context: Context) : ImageView(context) {
+
+        private val matrix = Matrix()
+        private var currentScale = 1f
+        private var isScaling = false
+
+        private val scaleGestureDetector = ScaleGestureDetector(
+            context,
+            object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+                    isScaling = true
+                    // Disallow ViewPager2 from intercepting touch events while scaling
+                    parent?.requestDisallowInterceptTouchEvent(true)
+                    return true
+                }
+
+                override fun onScale(detector: ScaleGestureDetector): Boolean {
+                    val scaleFactor = detector.scaleFactor
+                    val newScale = (currentScale * scaleFactor).coerceIn(MIN_SCALE, MAX_SCALE)
+                    val actualFactor = newScale / currentScale
+                    currentScale = newScale
+
+                    // Scale around the gesture focal point
+                    matrix.postScale(actualFactor, actualFactor, detector.focusX, detector.focusY)
+                    imageMatrix = matrix
+                    return true
+                }
+
+                override fun onScaleEnd(detector: ScaleGestureDetector) {
+                    isScaling = false
+                    // Re-allow ViewPager2 to intercept when zoom is back to 1x
+                    if (currentScale <= MIN_SCALE + 0.01f) {
+                        parent?.requestDisallowInterceptTouchEvent(false)
+                    }
+                }
+            }
+        )
+
+        init {
+            scaleType = ScaleType.MATRIX
+        }
+
+        override fun onTouchEvent(event: MotionEvent): Boolean {
+            scaleGestureDetector.onTouchEvent(event)
+            // Allow parent to handle single-finger swipes only when not scaling
+            if (!isScaling && currentScale <= MIN_SCALE + 0.01f) {
+                parent?.requestDisallowInterceptTouchEvent(false)
+            } else {
+                parent?.requestDisallowInterceptTouchEvent(true)
+            }
+            return true
+        }
+
+        /** Reset zoom level back to 1.0x */
+        fun resetZoom() {
+            currentScale = MIN_SCALE
+            matrix.reset()
+            imageMatrix = matrix
+        }
+    }
+
+    private fun imageViewFactory() = ZoomableImageView(requireContext()).apply {
         layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
     }
 
     override fun onCreateView(
-            inflater: LayoutInflater,
-            container: ViewGroup?,
-            savedInstanceState: Bundle?
-    ): View? = ViewPager2(requireContext()).apply {
-        // Populate the ViewPager and implement a cache of two media items
-        offscreenPageLimit = 2
-        adapter = GenericListAdapter(
-                bitmapList,
-                itemViewFactory = { imageViewFactory() }) { view, item, _ ->
-            view as ImageView
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        val root = inflater.inflate(R.layout.fragment_image_viewer, container, false)
+
+        viewPager = root.findViewById(R.id.view_pager)
+        viewPager.offscreenPageLimit = 2
+        viewPager.adapter = GenericListAdapter(
+            bitmapList,
+            itemViewFactory = { imageViewFactory() }
+        ) { view, item, _ ->
+            view as ZoomableImageView
+            // Reset zoom when the adapter binds a new item
+            view.resetZoom()
             Glide.with(view).load(item).into(view)
         }
+
+        // Reset zoom on the previously displayed page when the user swipes
+        viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                super.onPageSelected(position)
+                // Reset all visible pages
+                val recyclerView = viewPager.getChildAt(0) as? androidx.recyclerview.widget.RecyclerView
+                recyclerView?.let { rv ->
+                    for (i in 0 until rv.childCount) {
+                        (rv.getChildAt(i) as? ZoomableImageView)?.resetZoom()
+                    }
+                }
+            }
+        })
+
+        val fabShare = root.findViewById<FloatingActionButton>(R.id.fab_share)
+        fabShare.setOnClickListener {
+            val currentItem = viewPager.currentItem
+            if (currentItem < bitmapList.size) {
+                shareBitmap(bitmapList[currentItem])
+            }
+        }
+
+        return root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        view as ViewPager2
         lifecycleScope.launch(Dispatchers.IO) {
 
             // Load input image file
             val inputBuffer = loadInputBuffer()
 
             // Load the main JPEG image
-            addItemToViewPager(view, decodeBitmap(inputBuffer, 0, inputBuffer.size))
+            addItemToViewPager(viewPager, decodeBitmap(inputBuffer, 0, inputBuffer.size))
 
             // If we have depth data attached, attempt to load it
             if (isDepth) {
                 try {
                     val depthStart = findNextJpegEndMarker(inputBuffer, 2)
-                    addItemToViewPager(view, decodeBitmap(
-                            inputBuffer, depthStart, inputBuffer.size - depthStart))
+                    addItemToViewPager(
+                        viewPager, decodeBitmap(
+                            inputBuffer, depthStart, inputBuffer.size - depthStart
+                        )
+                    )
 
                     val confidenceStart = findNextJpegEndMarker(inputBuffer, depthStart)
-                    addItemToViewPager(view, decodeBitmap(
-                            inputBuffer, confidenceStart, inputBuffer.size - confidenceStart))
+                    addItemToViewPager(
+                        viewPager, decodeBitmap(
+                            inputBuffer, confidenceStart, inputBuffer.size - confidenceStart
+                        )
+                    )
 
                 } catch (exc: RuntimeException) {
                     Log.e(TAG, "Invalid start marker for depth or confidence data")
                 }
             }
         }
+    }
+
+    /** Save bitmap to a temporary file in cache and share it via ACTION_SEND */
+    private fun shareBitmap(bmp: Bitmap) {
+        try {
+            val tempFile = saveBitmapTemp(bmp)
+            val uri = FileProvider.getUriForFile(
+                requireContext(),
+                "${requireContext().packageName}.fileprovider",
+                tempFile
+            )
+            startActivity(
+                Intent.createChooser(
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = "image/jpeg"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    },
+                    "Share photo"
+                )
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to share image", e)
+        }
+    }
+
+    /** Write the bitmap to cacheDir/share/temp_share.jpg and return the File */
+    private fun saveBitmapTemp(bmp: Bitmap): File {
+        val shareDir = File(requireContext().cacheDir, "share")
+        shareDir.mkdirs()
+        val tempFile = File(shareDir, "temp_share.jpg")
+        FileOutputStream(tempFile).use { out ->
+            bmp.compress(Bitmap.CompressFormat.JPEG, 90, out)
+        }
+        return tempFile
     }
 
     /** Utility function used to read input file into a byte array */
@@ -139,7 +284,8 @@ class ImageViewerFragment : Fragment() {
 
         // Transform bitmap orientation using provided metadata
         return Bitmap.createBitmap(
-                bitmap, 0, 0, bitmap.width, bitmap.height, bitmapTransformation, true)
+            bitmap, 0, 0, bitmap.width, bitmap.height, bitmapTransformation, true
+        )
     }
 
     companion object {
@@ -147,6 +293,10 @@ class ImageViewerFragment : Fragment() {
 
         /** Maximum size of [Bitmap] decoded */
         private const val DOWNSAMPLE_SIZE: Int = 1024  // 1MP
+
+        /** Zoom scale bounds */
+        private const val MIN_SCALE = 1.0f
+        private const val MAX_SCALE = 5.0f
 
         /** These are the magic numbers used to separate the different JPG data chunks */
         private val JPEG_DELIMITER_BYTES = arrayOf(-1, -39)
@@ -159,12 +309,14 @@ class ImageViewerFragment : Fragment() {
             // Sanitize input arguments
             assert(start >= 0) { "Invalid start marker: $start" }
             assert(jpegBuffer.size > start) {
-                "Buffer size (${jpegBuffer.size}) smaller than start marker ($start)" }
+                "Buffer size (${jpegBuffer.size}) smaller than start marker ($start)"
+            }
 
             // Perform a linear search until the delimiter is found
             for (i in start until jpegBuffer.size - 1) {
                 if (jpegBuffer[i].toInt() == JPEG_DELIMITER_BYTES[0] &&
-                        jpegBuffer[i + 1].toInt() == JPEG_DELIMITER_BYTES[1]) {
+                    jpegBuffer[i + 1].toInt() == JPEG_DELIMITER_BYTES[1]
+                ) {
                     return i + 2
                 }
             }

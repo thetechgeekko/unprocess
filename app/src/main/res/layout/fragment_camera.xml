@@ -24,7 +24,7 @@
         android:background="#CC8B0000"
         android:gravity="center"
         android:padding="8dp"
-        android:text="Film engine unavailable — libfilmr.so not loaded"
+        android:text="@string/filmr_engine_unavailable"
         android:textColor="#FFFFFF"
         android:textSize="12sp"
         android:visibility="gone" />
@@ -106,7 +106,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:layout_marginTop="80dp"
-            android:text="Processing…"
+            android:text="@string/capture_status_processing"
             android:textColor="#FFFFFF"
             android:textSize="14sp" />
     </FrameLayout>

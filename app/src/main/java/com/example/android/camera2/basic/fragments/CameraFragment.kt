@@ -275,6 +275,21 @@ class CameraFragment : Fragment() {
         }
     }
 
+    private val restoreAfRunnable = Runnable {
+        if (!::previewRequestBuilder.isInitialized || !::session.isInitialized) return@Runnable
+        previewRequestBuilder.apply {
+            set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+            set(CaptureRequest.CONTROL_AF_REGIONS, null)
+            set(CaptureRequest.CONTROL_AE_REGIONS, null)
+            set(CaptureRequest.CONTROL_AF_TRIGGER, CaptureRequest.CONTROL_AF_TRIGGER_IDLE)
+        }
+        try {
+            session.setRepeatingRequest(previewRequestBuilder.build(), null, cameraHandler)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to restore AF mode", e)
+        }
+    }
+
     private fun setFocusPoint(x: Float, y: Float) {
         val sensorRect = characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE) ?: return
         val viewW = fragmentCameraBinding.viewFinder.width.toFloat().coerceAtLeast(1f)
@@ -292,6 +307,7 @@ class CameraFragment : Fragment() {
         previewRequestBuilder.apply {
             set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO)
             set(CaptureRequest.CONTROL_AF_REGIONS, arrayOf(focusRect))
+            set(CaptureRequest.CONTROL_AE_REGIONS, arrayOf(focusRect))
             set(CaptureRequest.CONTROL_AF_TRIGGER, CaptureRequest.CONTROL_AF_TRIGGER_START)
         }
         session.capture(previewRequestBuilder.build(), null, cameraHandler)
@@ -299,6 +315,10 @@ class CameraFragment : Fragment() {
         session.setRepeatingRequest(previewRequestBuilder.build(), null, cameraHandler)
 
         showFocusRingAt(x, y)
+
+        // Restore continuous AF after 3 seconds
+        fragmentCameraBinding.viewFinder.removeCallbacks(restoreAfRunnable)
+        fragmentCameraBinding.viewFinder.postDelayed(restoreAfRunnable, 3000)
     }
 
     private fun updateZoom() {
@@ -322,8 +342,8 @@ class CameraFragment : Fragment() {
         ring.visibility = View.VISIBLE
         ring.animate()
             .alpha(0f)
-            .setStartDelay(400)
-            .setDuration(200)
+            .setStartDelay(500)
+            .setDuration(300)
             .withEndAction { ring.visibility = View.GONE }
             .start()
     }

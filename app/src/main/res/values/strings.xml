@@ -6,4 +6,5 @@
     <string name="film_info_default">KODAK · Portra 400</string>
     <string name="filmr_engine_unavailable">Film engine unavailable — libfilmr.so not loaded</string>
     <string name="capture_status_processing">Processing…</string>
+    <string name="chromatic_aberration">Chromatic Aberration</string>
 </resources>

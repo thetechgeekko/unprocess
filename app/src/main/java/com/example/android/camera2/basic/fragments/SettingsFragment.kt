@@ -239,6 +239,12 @@ class SettingsFragment : Fragment() {
             config = config.copy(rotationalBlurAmount = v)
             "%.2f".format(v)
         }
+        // chromatic_aberration_strength  0.0 – 1.0  (seekbar 0-100)
+        setupSeekBar(binding.seekChromaticAberration, binding.labelChromaticAberration, 0, 100) { raw ->
+            val v = raw / 100f
+            config = config.copy(chromaticAberrationStrength = v)
+            "%.2f".format(v)
+        }
         // jpeg_quality  60 – 100  (seekbar 0-40, +60)
         setupSeekBar(binding.seekJpegQuality, binding.labelJpegQuality, 0, 40) { raw ->
             val v = raw + 60
@@ -420,6 +426,7 @@ class SettingsFragment : Fragment() {
         binding.seekDofFocus.progress = (config.dofFocus * 100).toInt().coerceIn(0, 100)
         binding.seekDofSwirl.progress = (config.dofSwirl * 100).toInt().coerceIn(0, 100)
         binding.seekRotBlur.progress = (config.rotationalBlurAmount * 100).toInt().coerceIn(0, 200)
+        binding.seekChromaticAberration.progress = (config.chromaticAberrationStrength * 100).toInt().coerceIn(0, 100)
         binding.seekJpegQuality.progress = (config.jpegQuality - 60).coerceIn(0, 40)
 
         binding.labelExposure.text = "%.2f s".format(config.exposureTime)
@@ -432,6 +439,7 @@ class SettingsFragment : Fragment() {
         binding.labelDofFocus.text = "%.2f".format(config.dofFocus)
         binding.labelDofSwirl.text = "%.2f".format(config.dofSwirl)
         binding.labelRotBlur.text = "%.2f".format(config.rotationalBlurAmount)
+        binding.labelChromaticAberration.text = "%.2f".format(config.chromaticAberrationStrength)
         binding.labelJpegQuality.text = "${config.jpegQuality}"
 
         binding.switchGrain.isChecked = config.enableGrain

@@ -55,7 +55,8 @@
             android:name="com.reilandeubank.unprocess.CameraActivity"
             android:clearTaskOnLaunch="true"
             android:exported="true"
-            android:theme="@style/AppTheme">
+            android:theme="@style/AppTheme"
+            android:enableOnBackInvokedCallback="true">
 
             <!-- Main app intent filter -->
             <intent-filter>

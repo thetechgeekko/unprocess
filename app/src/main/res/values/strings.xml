@@ -12,4 +12,9 @@
     <string name="highlight_hue_shift">Highlight Hue Shift</string>
     <string name="shadow_hue_shift">Shadow Hue Shift</string>
     <string name="share_photo">Share photo</string>
+    <string name="debug_logging">Debug Logging</string>
+    <string name="debug_logging_desc">Records app logs to a file for crash diagnosis</string>
+    <string name="share_log">Share Log</string>
+    <string name="no_log_found">No log captured yet</string>
+    <string name="log_active">Logging active</string>
 </resources>

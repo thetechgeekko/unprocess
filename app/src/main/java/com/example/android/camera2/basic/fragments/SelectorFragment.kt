@@ -109,15 +109,13 @@ class SelectorFragment : Fragment() {
                 val outputFormats = characteristics.get(
                         CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!.outputFormats
 
-                // Return back camera that support RAW capability
+                // Only list back cameras with RAW_SENSOR support — filmr processes from RAW
                 if (orientation == "Back" && capabilities.contains(
-                CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_RAW) &&
-                outputFormats.contains(ImageFormat.RAW_SENSOR)) {
-            availableCameras.add(FormatItem(
-                    "Save as RAW", id, ImageFormat.RAW_SENSOR, false))
-            availableCameras.add(FormatItem(
-                    "Save as JPEG", id, ImageFormat.RAW_SENSOR, true))
-        }
+                        CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_RAW) &&
+                        outputFormats.contains(ImageFormat.RAW_SENSOR)) {
+                    availableCameras.add(FormatItem(
+                            "Back Camera (RAW)", id, ImageFormat.RAW_SENSOR, false))
+                }
             }
 
             return availableCameras

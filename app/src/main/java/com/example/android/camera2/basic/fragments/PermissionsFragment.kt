@@ -19,6 +19,7 @@ package com.reilandeubank.unprocess.fragments
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -28,7 +29,14 @@ import androidx.lifecycle.lifecycleScope
 import com.reilandeubank.unprocess.R
 
 private const val PERMISSIONS_REQUEST_CODE = 10
-private val PERMISSIONS_REQUIRED = arrayOf(Manifest.permission.CAMERA)
+private val PERMISSIONS_REQUIRED = buildList {
+    add(Manifest.permission.CAMERA)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        add(Manifest.permission.READ_MEDIA_IMAGES)
+    } else {
+        add(Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
+}.toTypedArray()
 
 /**
  * This [Fragment] requests permissions and, once granted, it will navigate to the next fragment
@@ -51,8 +59,7 @@ class PermissionsFragment : Fragment() {
             requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSIONS_REQUEST_CODE) {
-            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Takes the user to the success fragment when permission is granted
+            if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
                 nativateToCamera();
             } else {
                 Toast.makeText(context, "Permission request denied", Toast.LENGTH_LONG).show()

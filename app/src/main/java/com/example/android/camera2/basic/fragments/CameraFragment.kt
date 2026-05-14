@@ -627,11 +627,9 @@ class CameraFragment : Fragment() {
                     }
 
                     val modelPath = depthModelPath(filmrConfig, ctx)
-                    var bitmap: Bitmap? = withContext(Dispatchers.IO) {
+                    val decoded = withContext(Dispatchers.IO) {
                         FilmrEngine.processFromDng(dngBytes, filmrConfig, modelPath)
-                    }
-                    val decoded = bitmap
-                        ?: throw IOException("Film simulation failed — filmr could not process DNG. Check logcat for details.")
+                    } ?: throw IOException("Film simulation failed — filmr could not process DNG. Check logcat for details.")
 
                     val finalBitmap = decoded
 

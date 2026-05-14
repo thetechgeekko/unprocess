@@ -9,5 +9,7 @@
     <string name="chromatic_aberration">Chromatic Aberration</string>
     <string name="grain_amount">Grain Amount</string>
     <string name="vignette_strength">Vignette Strength</string>
+    <string name="highlight_hue_shift">Highlight Hue Shift</string>
+    <string name="shadow_hue_shift">Shadow Hue Shift</string>
     <string name="share_photo">Share photo</string>
 </resources>

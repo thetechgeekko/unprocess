@@ -483,6 +483,44 @@
                     android:progressTint="@color/filmr_accent" android:thumbTint="@color/filmr_accent"
                     android:progressBackgroundTint="@color/filmr_bg_hover" />
 
+                <View android:layout_width="match_parent" android:layout_height="1dp"
+                    android:layout_marginTop="12dp" android:layout_marginBottom="12dp"
+                    android:background="@color/filmr_border" />
+                <!-- Highlight Hue Shift -->
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="@string/highlight_hue_shift"
+                        android:textColor="@color/filmr_text_secondary" android:textSize="11sp" />
+                    <TextView android:id="@+id/label_highlight_hue_shift" android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" android:text="0.00"
+                        android:textColor="@color/filmr_text_primary" android:textSize="11sp" />
+                </LinearLayout>
+                <SeekBar android:id="@+id/seek_highlight_hue_shift" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:layout_marginTop="4dp"
+                    android:max="200" android:progress="100"
+                    android:progressTint="@color/filmr_accent" android:thumbTint="@color/filmr_accent"
+                    android:progressBackgroundTint="@color/filmr_bg_hover" />
+
+                <View android:layout_width="match_parent" android:layout_height="1dp"
+                    android:layout_marginTop="12dp" android:layout_marginBottom="12dp"
+                    android:background="@color/filmr_border" />
+                <!-- Shadow Hue Shift -->
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="@string/shadow_hue_shift"
+                        android:textColor="@color/filmr_text_secondary" android:textSize="11sp" />
+                    <TextView android:id="@+id/label_shadow_hue_shift" android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" android:text="0.00"
+                        android:textColor="@color/filmr_text_primary" android:textSize="11sp" />
+                </LinearLayout>
+                <SeekBar android:id="@+id/seek_shadow_hue_shift" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:layout_marginTop="4dp"
+                    android:max="200" android:progress="100"
+                    android:progressTint="@color/filmr_accent" android:thumbTint="@color/filmr_accent"
+                    android:progressBackgroundTint="@color/filmr_bg_hover" />
+
             </LinearLayout>
 
             <!-- ============================================================ -->

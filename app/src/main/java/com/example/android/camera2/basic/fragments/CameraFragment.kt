@@ -129,6 +129,24 @@ class CameraFragment : Fragment() {
     private var currentZoom = 1.0f
     private var zoomCropRect: Rect? = null
 
+    private val previewCaptureCallback = object : CameraCaptureSession.CaptureCallback() {
+        override fun onCaptureCompleted(
+            session: CameraCaptureSession,
+            request: CaptureRequest,
+            result: TotalCaptureResult
+        ) {
+            val exposureTimeNs = result.get(CaptureResult.SENSOR_EXPOSURE_TIME)
+            val sensorIso = result.get(CaptureResult.SENSOR_SENSITIVITY)
+            if (exposureTimeNs != null && sensorIso != null) {
+                requireActivity().runOnUiThread {
+                    if (_fragmentCameraBinding != null) {
+                        updateFilmInfoBar(exposureTimeNs, sensorIso)
+                    }
+                }
+            }
+        }
+    }
+
     private lateinit var relativeOrientation: OrientationLiveData
 
     override fun onCreateView(
@@ -202,7 +220,7 @@ class CameraFragment : Fragment() {
         previewRequestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
             addTarget(fragmentCameraBinding.viewFinder.holder.surface)
         }
-        session.setRepeatingRequest(previewRequestBuilder.build(), null, cameraHandler)
+        session.setRepeatingRequest(previewRequestBuilder.build(), previewCaptureCallback, cameraHandler)
 
         setupTouchInteractions()
 
@@ -618,12 +636,24 @@ class CameraFragment : Fragment() {
         }
     }
 
-    private fun updateFilmInfoBar() {
+    private fun updateFilmInfoBar(exposureTimeNs: Long? = null, iso: Int? = null) {
         val prefs = requireContext()
             .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
         val config = FilmrConfig.load(prefs)
-        fragmentCameraBinding.filmInfoText.text =
-            "${config.preset.manufacturer.uppercase()} · ${config.preset.displayName}"
+        val filmName = "${config.preset.manufacturer.uppercase()} · ${config.preset.displayName}"
+        val text = if (exposureTimeNs != null && iso != null) {
+            val shutterStr = if (exposureTimeNs > 1_000_000_000L) {
+                val secs = exposureTimeNs / 1_000_000_000.0
+                "${"%.1f".format(secs)}s"
+            } else {
+                val denom = (1_000_000_000L / exposureTimeNs).toInt()
+                "1/${denom}s"
+            }
+            "$filmName  |  ISO $iso  |  $shutterStr"
+        } else {
+            filmName
+        }
+        fragmentCameraBinding.filmInfoText.text = text
     }
 
     private fun saveDngBytes(dngBytes: ByteArray, filename: String, ctx: Context = requireContext()) {

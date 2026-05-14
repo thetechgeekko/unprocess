@@ -91,7 +91,7 @@
 
     <fragment
         android:id="@+id/settings_fragment"
-        android:name="com.reilandeubank.unprocess.fragments.SettingsFragment"
+        android:name="com.reilandeubank.unprocess.fragments.WebViewSettingsFragment"
         android:label="Filmr Settings" />
 
     <fragment

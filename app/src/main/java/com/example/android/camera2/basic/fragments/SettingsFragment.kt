@@ -1,6 +1,7 @@
 package com.reilandeubank.unprocess.fragments
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -10,8 +11,10 @@ import android.widget.ArrayAdapter
 import android.widget.SeekBar
 import android.widget.Spinner
 import android.widget.TextView
+import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
+import com.reilandeubank.unprocess.utils.LogcatManager
 import com.reilandeubank.unprocess.R
 import com.reilandeubank.unprocess.databinding.FragmentSettingsBinding
 import com.reilandeubank.unprocess.engine.FilmPreset
@@ -68,6 +71,7 @@ class SettingsFragment : Fragment() {
         setupWhiteBalanceModeSpinner()
         setupSliders()
         setupSwitches()
+        setupDebugLogging()
         setupDepthModelSection()
         setupResetButton()
 
@@ -308,6 +312,70 @@ class SettingsFragment : Fragment() {
         }
         binding.switchLightLeak.setOnCheckedChangeListener { _, checked ->
             if (!restoring) { config = config.copy(lightLeakEnabled = checked); saveConfig() }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Debug logging
+    // ------------------------------------------------------------------
+
+    private fun setupDebugLogging() {
+        val ctx = requireContext()
+        val switch = binding.switchDebugLogging
+        val statusLabel = binding.labelLogStatus
+        val shareBtn = binding.btnShareLog
+
+        // Restore toggle state to match whether logcat is actually running
+        switch.isChecked = LogcatManager.isLogging
+
+        fun refreshStatus() {
+            val logFile = LogcatManager.latestLogFile(ctx)
+            if (logFile != null) {
+                statusLabel.text = "${logFile.name}  ·  ${LogcatManager.logFileSize(ctx)}"
+                shareBtn.isEnabled = true
+            } else {
+                statusLabel.text = getString(R.string.no_log_found)
+                shareBtn.isEnabled = false
+            }
+        }
+
+        refreshStatus()
+
+        switch.setOnCheckedChangeListener { _, checked ->
+            if (checked) {
+                LogcatManager.start(ctx)
+                statusLabel.text = getString(R.string.log_active)
+            } else {
+                LogcatManager.stop()
+                refreshStatus()
+            }
+            shareBtn.isEnabled = LogcatManager.latestLogFile(ctx) != null
+        }
+
+        shareBtn.setOnClickListener {
+            val logFile = LogcatManager.latestLogFile(ctx) ?: return@setOnClickListener
+            // Stop logging so the file is fully flushed before sharing
+            if (LogcatManager.isLogging) {
+                LogcatManager.stop()
+                switch.isChecked = false
+            }
+            val uri = FileProvider.getUriForFile(
+                ctx,
+                "${ctx.packageName}.fileprovider",
+                logFile
+            )
+            startActivity(
+                Intent.createChooser(
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        putExtra(Intent.EXTRA_SUBJECT, "Filmr crash log — ${logFile.name}")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    },
+                    getString(R.string.share_log)
+                )
+            )
+            refreshStatus()
         }
     }
 

@@ -43,7 +43,6 @@
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
         android:src="@android:drawable/ic_menu_share"
-        android:contentDescription="Share photo"
-        app:tint="@android:color/white" />
+        android:contentDescription="@string/share_photo" />
 
 </FrameLayout>

@@ -89,6 +89,8 @@ class CameraFragment : Fragment() {
     private var _fragmentCameraBinding: FragmentCameraBinding? = null
     private val fragmentCameraBinding get() = _fragmentCameraBinding!!
 
+    private var sessionShotCount = 0
+
     private val args: CameraFragmentArgs by navArgs()
 
     private val navController: NavController by lazy {
@@ -129,6 +131,24 @@ class CameraFragment : Fragment() {
     private var currentZoom = 1.0f
     private var zoomCropRect: Rect? = null
 
+    private val previewCaptureCallback = object : CameraCaptureSession.CaptureCallback() {
+        override fun onCaptureCompleted(
+            session: CameraCaptureSession,
+            request: CaptureRequest,
+            result: TotalCaptureResult
+        ) {
+            val exposureTimeNs = result.get(CaptureResult.SENSOR_EXPOSURE_TIME)
+            val sensorIso = result.get(CaptureResult.SENSOR_SENSITIVITY)
+            if (exposureTimeNs != null && sensorIso != null) {
+                requireActivity().runOnUiThread {
+                    if (_fragmentCameraBinding != null) {
+                        updateFilmInfoBar(exposureTimeNs, sensorIso)
+                    }
+                }
+            }
+        }
+    }
+
     private lateinit var relativeOrientation: OrientationLiveData
 
     override fun onCreateView(
@@ -152,6 +172,7 @@ class CameraFragment : Fragment() {
             navController.navigate(R.id.action_camera_to_settings)
         }
         updateFilmInfoBar()
+        setupPresetStrip()
         fragmentCameraBinding.viewFinder.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
             override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
@@ -202,13 +223,16 @@ class CameraFragment : Fragment() {
         previewRequestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
             addTarget(fragmentCameraBinding.viewFinder.holder.surface)
         }
-        session.setRepeatingRequest(previewRequestBuilder.build(), null, cameraHandler)
+        session.setRepeatingRequest(previewRequestBuilder.build(), previewCaptureCallback, cameraHandler)
 
         setupTouchInteractions()
 
-        if (!FilmrEngine.isAvailable && !filmrUnavailableWarningShown) {
-            filmrUnavailableWarningShown = true
-            showSnackbar("Film simulation engine unavailable — photos will be saved without film processing")
+        if (!FilmrEngine.isAvailable) {
+            fragmentCameraBinding.filmrUnavailableBanner.visibility = View.VISIBLE
+            if (!filmrUnavailableWarningShown) {
+                filmrUnavailableWarningShown = true
+                showSnackbar("Film simulation engine unavailable — photos will be saved without film processing")
+            }
         }
 
         fragmentCameraBinding.captureButton.setOnClickListener {
@@ -226,6 +250,8 @@ class CameraFragment : Fragment() {
                         val output = saveResult(r)
                         Log.d(TAG, "Image saved: ${output.absolutePath}")
                         withContext(Dispatchers.Main) {
+                            sessionShotCount++
+                            updateFilmInfoBar()
                             fragmentCameraBinding.captureOverlay.visibility = View.GONE
                             navController.navigate(
                                 CameraFragmentDirections
@@ -604,6 +630,7 @@ class CameraFragment : Fragment() {
                     val finalBitmap = decoded
 
                     val savedFile = saveJpeg(finalBitmap, "IMG_$timestamp.jpg", result.orientation, filmrConfig.jpegQuality, ctx)
+                    updateHistogram(finalBitmap)
                     finalBitmap.recycle()
                     savedFile
                 } finally {
@@ -615,12 +642,81 @@ class CameraFragment : Fragment() {
         }
     }
 
-    private fun updateFilmInfoBar() {
+    private fun updateFilmInfoBar(exposureTimeNs: Long? = null, iso: Int? = null) {
         val prefs = requireContext()
             .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
         val config = FilmrConfig.load(prefs)
-        fragmentCameraBinding.filmInfoText.text =
-            "${config.preset.manufacturer.uppercase()} · ${config.preset.displayName}"
+        val filmName = "${config.preset.manufacturer.uppercase()} · ${config.preset.displayName}"
+        val countSuffix = if (sessionShotCount > 0) "  |  #$sessionShotCount" else ""
+        val text = if (exposureTimeNs != null && iso != null) {
+            val shutterStr = if (exposureTimeNs > 1_000_000_000L) {
+                val secs = exposureTimeNs / 1_000_000_000.0
+                "${"%.1f".format(secs)}s"
+            } else {
+                val denom = (1_000_000_000L / exposureTimeNs).toInt()
+                "1/${denom}s"
+            }
+            "$filmName  |  ISO $iso  |  $shutterStr$countSuffix"
+        } else {
+            "$filmName$countSuffix"
+        }
+        fragmentCameraBinding.filmInfoText.text = text
+    }
+
+    private fun setupPresetStrip() {
+        val prefs = requireContext()
+            .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
+        val config = FilmrConfig.load(prefs)
+        val currentPreset = config.preset
+        val container = fragmentCameraBinding.presetChipContainer
+        container.removeAllViews()
+        val density = resources.displayMetrics.density
+        val hPad = (8 * density).toInt()
+        val vPad = (4 * density).toInt()
+        val margin = (4 * density).toInt()
+        for (preset in com.reilandeubank.unprocess.engine.FilmPreset.values()) {
+            val chip = android.widget.TextView(requireContext()).apply {
+                text = preset.displayName
+                setTextColor(android.graphics.Color.WHITE)
+                textSize = 11f
+                setPadding(hPad, vPad, hPad, vPad)
+                val bgColor = if (preset == currentPreset) 0xFFFFBF00.toInt() else 0x44FFFFFF
+                setBackgroundColor(bgColor)
+                val params = android.widget.LinearLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins(margin, 0, margin, 0)
+                }
+                layoutParams = params
+                setOnClickListener {
+                    val editPrefs = requireContext()
+                        .getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
+                    val currentConfig = FilmrConfig.load(editPrefs)
+                    FilmrConfig.save(currentConfig.copy(preset = preset), editPrefs)
+                    updateFilmInfoBar()
+                    highlightSelectedPreset(container, preset)
+                }
+            }
+            container.addView(chip)
+        }
+    }
+
+    private fun highlightSelectedPreset(
+        container: android.widget.LinearLayout,
+        selected: com.reilandeubank.unprocess.engine.FilmPreset
+    ) {
+        for (i in 0 until container.childCount) {
+            val child = container.getChildAt(i) as? android.widget.TextView ?: continue
+            val preset = com.reilandeubank.unprocess.engine.FilmPreset.values()[i]
+            child.setBackgroundColor(
+                if (preset == selected) 0xFFFFBF00.toInt() else 0x44FFFFFF
+            )
+        }
+    }
+
+    private fun updateHistogram(bitmap: Bitmap) {
+        view?.post { fragmentCameraBinding.histogramView.updateHistogram(bitmap) }
     }
 
     private fun saveDngBytes(dngBytes: ByteArray, filename: String, ctx: Context = requireContext()) {

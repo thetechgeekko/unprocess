@@ -239,6 +239,36 @@ class SettingsFragment : Fragment() {
             config = config.copy(rotationalBlurAmount = v)
             "%.2f".format(v)
         }
+        // chromatic_aberration_strength  0.0 – 1.0  (seekbar 0-100)
+        setupSeekBar(binding.seekChromaticAberration, binding.labelChromaticAberration, 0, 100) { raw ->
+            val v = raw / 100f
+            config = config.copy(chromaticAberrationStrength = v)
+            "%.2f".format(v)
+        }
+        // grain_multiplier  0.0 – 2.0  (seekbar 0-200)
+        setupSeekBar(binding.seekGrainMultiplier, binding.labelGrainMultiplier, 0, 200) { raw ->
+            val v = raw / 100f
+            config = config.copy(grainMultiplier = v)
+            "%.2f".format(v)
+        }
+        // vignette_multiplier  0.0 – 2.0  (seekbar 0-200)
+        setupSeekBar(binding.seekVignetteMultiplier, binding.labelVignetteMultiplier, 0, 200) { raw ->
+            val v = raw / 100f
+            config = config.copy(vignetteMultiplier = v)
+            "%.2f".format(v)
+        }
+        // highlight_hue_shift  -1.0 – 1.0  (seekbar 0-200, centre=100)
+        setupSeekBar(binding.seekHighlightHueShift, binding.labelHighlightHueShift, 0, 200) { raw ->
+            val v = (raw - 100) / 100f
+            config = config.copy(highlightHueShift = v)
+            "%.2f".format(v)
+        }
+        // shadow_hue_shift  -1.0 – 1.0  (seekbar 0-200, centre=100)
+        setupSeekBar(binding.seekShadowHueShift, binding.labelShadowHueShift, 0, 200) { raw ->
+            val v = (raw - 100) / 100f
+            config = config.copy(shadowHueShift = v)
+            "%.2f".format(v)
+        }
         // jpeg_quality  60 – 100  (seekbar 0-40, +60)
         setupSeekBar(binding.seekJpegQuality, binding.labelJpegQuality, 0, 40) { raw ->
             val v = raw + 60
@@ -294,6 +324,8 @@ class SettingsFragment : Fragment() {
             it.isEnabled = false
             binding.progressDepthModel.progress = 0
             binding.progressDepthModel.visibility = View.VISIBLE
+            binding.depthDownloadMbText.text = ""
+            binding.depthDownloadMbText.visibility = View.VISIBLE
             binding.labelDepthModelStatus.text = "Connecting…"
             // Capture context-dependent file path on the main thread before switching to IO
             val destFile = depthModelFile()
@@ -326,9 +358,9 @@ class SettingsFragment : Fragment() {
                                     lastReportedMB = downloadedMB
                                     val pct = ((downloadedBytes.toFloat() / totalBytes) * 100).toInt()
                                     withContext(Dispatchers.Main) {
-                                        binding.labelDepthModelStatus.text =
-                                            "%.0f / %.0f MB".format(downloadedMB.toFloat(), totalMB)
                                         binding.progressDepthModel.progress = pct
+                                        binding.depthDownloadMbText.text =
+                                            "%.0f / %.0f MB".format(downloadedMB.toFloat(), totalMB)
                                     }
                                 }
                             }
@@ -337,11 +369,13 @@ class SettingsFragment : Fragment() {
                     tmp.renameTo(dest)
                     withContext(Dispatchers.Main) {
                         binding.progressDepthModel.visibility = View.GONE
+                        binding.depthDownloadMbText.visibility = View.GONE
                         refreshDepthModelStatus()
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
                         binding.progressDepthModel.visibility = View.GONE
+                        binding.depthDownloadMbText.visibility = View.GONE
                         binding.labelDepthModelStatus.text = "Download failed: ${e.message}"
                         binding.btnDownloadDepthModel.isEnabled = true
                     }
@@ -352,6 +386,7 @@ class SettingsFragment : Fragment() {
 
     private fun refreshDepthModelStatus() {
         binding.progressDepthModel.visibility = View.GONE
+        binding.depthDownloadMbText.visibility = View.GONE
         val f = depthModelFile()
         if (!FilmrEngine.isDepthEstimationSupported) {
             binding.labelDepthModelStatus.text =
@@ -415,6 +450,11 @@ class SettingsFragment : Fragment() {
         binding.seekDofFocus.progress = (config.dofFocus * 100).toInt().coerceIn(0, 100)
         binding.seekDofSwirl.progress = (config.dofSwirl * 100).toInt().coerceIn(0, 100)
         binding.seekRotBlur.progress = (config.rotationalBlurAmount * 100).toInt().coerceIn(0, 200)
+        binding.seekChromaticAberration.progress = (config.chromaticAberrationStrength * 100).toInt().coerceIn(0, 100)
+        binding.seekGrainMultiplier.progress = (config.grainMultiplier * 100).toInt().coerceIn(0, 200)
+        binding.seekVignetteMultiplier.progress = (config.vignetteMultiplier * 100).toInt().coerceIn(0, 200)
+        binding.seekHighlightHueShift.progress = ((config.highlightHueShift * 100) + 100).toInt().coerceIn(0, 200)
+        binding.seekShadowHueShift.progress = ((config.shadowHueShift * 100) + 100).toInt().coerceIn(0, 200)
         binding.seekJpegQuality.progress = (config.jpegQuality - 60).coerceIn(0, 40)
 
         binding.labelExposure.text = "%.2f s".format(config.exposureTime)
@@ -427,6 +467,11 @@ class SettingsFragment : Fragment() {
         binding.labelDofFocus.text = "%.2f".format(config.dofFocus)
         binding.labelDofSwirl.text = "%.2f".format(config.dofSwirl)
         binding.labelRotBlur.text = "%.2f".format(config.rotationalBlurAmount)
+        binding.labelChromaticAberration.text = "%.2f".format(config.chromaticAberrationStrength)
+        binding.labelGrainMultiplier.text = "%.2f".format(config.grainMultiplier)
+        binding.labelVignetteMultiplier.text = "%.2f".format(config.vignetteMultiplier)
+        binding.labelHighlightHueShift.text = "%.2f".format(config.highlightHueShift)
+        binding.labelShadowHueShift.text = "%.2f".format(config.shadowHueShift)
         binding.labelJpegQuality.text = "${config.jpegQuality}"
 
         binding.switchGrain.isChecked = config.enableGrain

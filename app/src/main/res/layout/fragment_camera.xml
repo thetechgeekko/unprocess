@@ -73,28 +73,29 @@
     </LinearLayout>
 
     <!-- Processing overlay: shown while capture + filmr simulation are running -->
-    <LinearLayout
-        android:id="@+id/processing_overlay"
+    <FrameLayout
+        android:id="@+id/capture_overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:background="#CC000000"
-        android:visibility="gone">
-
+        android:background="#80000000"
+        android:visibility="gone"
+        android:gravity="center">
         <ProgressBar
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:indeterminate="true" />
-
-        <TextView
+            android:id="@+id/capture_progress"
+            style="?android:attr/progressBarStyleLarge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:indeterminate="true" />
+        <TextView
+            android:id="@+id/capture_status_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="80dp"
             android:text="Processing…"
-            android:textColor="@android:color/white"
-            android:textSize="14sp"
-            android:layout_marginTop="12dp" />
-
-    </LinearLayout>
+            android:textColor="#FFFFFF"
+            android:textSize="14sp" />
+    </FrameLayout>
 
 </FrameLayout>

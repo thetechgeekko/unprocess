@@ -213,21 +213,27 @@ class CameraFragment : Fragment() {
 
         fragmentCameraBinding.captureButton.setOnClickListener {
             it.isEnabled = false
-            fragmentCameraBinding.processingOverlay.visibility = View.VISIBLE
+            fragmentCameraBinding.captureOverlay.visibility = View.VISIBLE
+            fragmentCameraBinding.captureStatusText.text = "Capturing…"
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    takePhoto().use { result ->
-                        Log.d(TAG, "Result received: $result")
-                        val output = saveResult(result)
+                    val result = takePhoto()
+                    withContext(Dispatchers.Main) {
+                        fragmentCameraBinding.captureStatusText.text = "Processing…"
+                    }
+                    result.use { r ->
+                        Log.d(TAG, "Result received: $r")
+                        val output = saveResult(r)
                         Log.d(TAG, "Image saved: ${output.absolutePath}")
                         withContext(Dispatchers.Main) {
+                            fragmentCameraBinding.captureOverlay.visibility = View.GONE
                             navController.navigate(
                                 CameraFragmentDirections
                                     .actionCameraToJpegViewer(output.absolutePath)
-                                    .setOrientation(result.orientation)
+                                    .setOrientation(r.orientation)
                                     .setDepth(
                                         Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                                                result.format == ImageFormat.DEPTH_JPEG
+                                                r.format == ImageFormat.DEPTH_JPEG
                                     )
                             )
                         }
@@ -235,7 +241,7 @@ class CameraFragment : Fragment() {
                 } catch (e: Exception) {
                     Log.e(TAG, "Capture failed", e)
                     withContext(Dispatchers.Main) {
-                        fragmentCameraBinding.processingOverlay.visibility = View.GONE
+                        fragmentCameraBinding.captureOverlay.visibility = View.GONE
                         it.isEnabled = true
                     }
                 }

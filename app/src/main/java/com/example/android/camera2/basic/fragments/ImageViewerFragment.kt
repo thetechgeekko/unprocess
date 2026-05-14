@@ -23,6 +23,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.os.Bundle
 import android.util.Log
+import android.view.GestureDetector
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -30,6 +31,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -45,6 +48,9 @@ import kotlinx.coroutines.launch
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.math.max
 
 
@@ -75,6 +81,11 @@ class ImageViewerFragment : Fragment() {
 
     /** Reference to the ViewPager2 from the inflated layout */
     private lateinit var viewPager: ViewPager2
+
+    /** Info bar views */
+    private lateinit var infoBar: LinearLayout
+    private lateinit var infoTextPrimary: TextView
+    private lateinit var infoTextSecondary: TextView
 
     /**
      * ZoomableImageView — an ImageView that supports pinch-to-zoom via ScaleGestureDetector.
@@ -164,7 +175,12 @@ class ImageViewerFragment : Fragment() {
             Glide.with(view).load(item).into(view)
         }
 
-        // Reset zoom on the previously displayed page when the user swipes
+        // Wire up info bar views
+        infoBar = root.findViewById(R.id.info_bar)
+        infoTextPrimary = root.findViewById(R.id.info_text_primary)
+        infoTextSecondary = root.findViewById(R.id.info_text_secondary)
+
+        // Reset zoom on the previously displayed page when the user swipes; also hide info bar
         viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
@@ -175,8 +191,30 @@ class ImageViewerFragment : Fragment() {
                         (rv.getChildAt(i) as? ZoomableImageView)?.resetZoom()
                     }
                 }
+                // Hide metadata overlay when switching pages
+                infoBar.visibility = View.GONE
             }
         })
+
+        // Gesture detector for single-tap to toggle info bar
+        val gestureDetector = GestureDetector(
+            requireContext(),
+            object : GestureDetector.SimpleOnGestureListener() {
+                override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                    if (infoBar.visibility == View.VISIBLE) {
+                        infoBar.visibility = View.GONE
+                    } else {
+                        showInfoBar()
+                    }
+                    return true
+                }
+            }
+        )
+
+        viewPager.setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
+            false
+        }
 
         val fabShare = root.findViewById<FloatingActionButton>(R.id.fab_share)
         fabShare.setOnClickListener {
@@ -187,6 +225,25 @@ class ImageViewerFragment : Fragment() {
         }
 
         return root
+    }
+
+    /** Populate and show the metadata info bar for the current file */
+    private fun showInfoBar() {
+        val file = File(args.filePath)
+        val fileName = file.name.ifEmpty { "Photo" }
+        infoTextPrimary.text = fileName
+
+        if (file.exists()) {
+            val sizeMb = file.length().toDouble() / (1024.0 * 1024.0)
+            val sizeStr = String.format(Locale.US, "%.1f MB", sizeMb)
+            val dateStr = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
+                .format(Date(file.lastModified()))
+            infoTextSecondary.text = "$sizeStr  ·  $dateStr"
+        } else {
+            infoTextSecondary.text = ""
+        }
+
+        infoBar.visibility = View.VISIBLE
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

@@ -206,9 +206,12 @@ class CameraFragment : Fragment() {
 
         setupTouchInteractions()
 
-        if (!FilmrEngine.isAvailable && !filmrUnavailableWarningShown) {
-            filmrUnavailableWarningShown = true
-            showSnackbar("Film simulation engine unavailable — photos will be saved without film processing")
+        if (!FilmrEngine.isAvailable) {
+            fragmentCameraBinding.filmrUnavailableBanner.visibility = View.VISIBLE
+            if (!filmrUnavailableWarningShown) {
+                filmrUnavailableWarningShown = true
+                showSnackbar("Film simulation engine unavailable — photos will be saved without film processing")
+            }
         }
 
         fragmentCameraBinding.captureButton.setOnClickListener {

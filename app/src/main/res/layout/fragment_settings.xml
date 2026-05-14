@@ -752,6 +752,16 @@
                     android:progressBackgroundTint="@color/filmr_bg_hover"
                     android:visibility="gone" />
 
+                <TextView
+                    android:id="@+id/depth_download_mb_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textColor="@color/filmr_text_secondary"
+                    android:textSize="12sp"
+                    android:layout_marginTop="4dp"
+                    android:visibility="gone" />
+
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"

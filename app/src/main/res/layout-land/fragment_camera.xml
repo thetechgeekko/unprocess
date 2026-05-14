@@ -16,6 +16,19 @@
         android:layout_height="match_parent"
         android:foreground="@android:color/transparent" />
 
+    <TextView
+        android:id="@+id/filmr_unavailable_banner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:background="#CC8B0000"
+        android:gravity="center"
+        android:padding="8dp"
+        android:text="Film engine unavailable — libfilmr.so not loaded"
+        android:textColor="#FFFFFF"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
     <!-- Tap-to-focus ring: positioned programmatically at the touch point -->
     <ImageView
         android:id="@+id/focus_ring"

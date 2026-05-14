@@ -19,6 +19,7 @@ package com.reilandeubank.unprocess.fragments
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.ImageFormat
 import android.graphics.Rect
@@ -264,11 +265,16 @@ class CameraFragment : Fragment() {
                             )
                         }
                     }
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     Log.e(TAG, "Capture failed", e)
                     withContext(Dispatchers.Main) {
                         fragmentCameraBinding.captureOverlay.visibility = View.GONE
                         it.isEnabled = true
+                        val msg = when (e) {
+                            is OutOfMemoryError -> "Out of memory — try closing other apps and retaking"
+                            else -> "Capture failed: ${e.message}"
+                        }
+                        showSnackbar(msg)
                     }
                 }
             }
@@ -621,11 +627,9 @@ class CameraFragment : Fragment() {
                     }
 
                     val modelPath = depthModelPath(filmrConfig, ctx)
-                    var bitmap: Bitmap? = withContext(Dispatchers.IO) {
+                    val decoded = withContext(Dispatchers.IO) {
                         FilmrEngine.processFromDng(dngBytes, filmrConfig, modelPath)
-                    }
-                    val decoded = bitmap
-                        ?: throw IOException("Film simulation failed — filmr could not process DNG. Check logcat for details.")
+                    } ?: throw IOException("Film simulation failed — filmr could not process DNG. Check logcat for details.")
 
                     val finalBitmap = decoded
 
@@ -638,7 +642,23 @@ class CameraFragment : Fragment() {
                 }
             }
 
-            else -> throw RuntimeException("Unsupported image format: ${result.format} — only RAW_SENSOR is supported")
+            ImageFormat.JPEG -> {
+                val buffer = result.image.planes[0].buffer
+                val jpegBytes = ByteArray(buffer.remaining()).also { buffer.get(it) }
+                val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
+                    ?: throw IOException("Failed to decode JPEG from capture")
+                val processed = withContext(Dispatchers.IO) {
+                    FilmrEngine.processChecked(bitmap, filmrConfig).first
+                }
+                if (processed != null && processed !== bitmap) bitmap.recycle()
+                val finalBitmap = processed ?: bitmap
+                val savedFile = saveJpeg(finalBitmap, "IMG_$timestamp.jpg", result.orientation, filmrConfig.jpegQuality, ctx)
+                updateHistogram(finalBitmap)
+                finalBitmap.recycle()
+                savedFile
+            }
+
+            else -> throw RuntimeException("Unsupported image format: ${result.format}")
         }
     }
 
@@ -790,7 +810,10 @@ class CameraFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
-        // Stop HandlerThreads when the fragment is paused to prevent leaks
+        // Close camera before quitting threads so the onClosed callback can still post
+        if (::camera.isInitialized) {
+            try { camera.close() } catch (exc: Throwable) { Log.e(TAG, "Error closing camera", exc) }
+        }
         cameraThread?.quitSafely()
         cameraThread = null
         cameraHandler = null
@@ -801,7 +824,10 @@ class CameraFragment : Fragment() {
 
     override fun onStop() {
         super.onStop()
-        try { camera.close() } catch (exc: Throwable) { Log.e(TAG, "Error closing camera", exc) }
+        // Camera already closed in onPause; this is a safety net for edge cases
+        if (::camera.isInitialized) {
+            try { camera.close() } catch (exc: Throwable) { /* already closed */ }
+        }
     }
 
     override fun onDestroy() {

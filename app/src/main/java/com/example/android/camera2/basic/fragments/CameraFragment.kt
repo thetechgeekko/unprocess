@@ -19,7 +19,6 @@ package com.reilandeubank.unprocess.fragments
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.ImageFormat
 import android.graphics.Rect
@@ -573,36 +572,10 @@ class CameraFragment : Fragment() {
                     var bitmap: Bitmap? = withContext(Dispatchers.IO) {
                         FilmrEngine.processFromDng(dngBytes, filmrConfig, modelPath)
                     }
-                    val filmrAlreadyApplied = bitmap != null
-
-                    if (!filmrAlreadyApplied) {
-                        Log.d(TAG, "processFromDng unavailable, falling back to JPEG companion")
-                        withContext(Dispatchers.Main) {
-                            showSnackbar("Film simulation unavailable — saved original")
-                        }
-                        val jpegPlane = result.image.planes[0]
-                        val jpegBytes = ByteArray(jpegPlane.buffer.remaining())
-                        jpegPlane.buffer.get(jpegBytes)
-                        bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
-                    }
-
                     val decoded = bitmap
-                        ?: throw IOException("Failed to decode image from both DNG and JPEG paths")
+                        ?: throw IOException("Film simulation failed — filmr could not process DNG. Check logcat for details.")
 
-                    val finalBitmap = if (!filmrAlreadyApplied) {
-                        val (processed, success) = withContext(Dispatchers.IO) {
-                            applyFilmrProcessing(decoded, filmrConfig, ctx)
-                        }
-                        if (!success && FilmrEngine.isAvailable) {
-                            withContext(Dispatchers.Main) {
-                                showSnackbar("Film simulation failed — saved original")
-                            }
-                        }
-                        if (processed !== decoded) decoded.recycle()
-                        processed
-                    } else {
-                        decoded
-                    }
+                    val finalBitmap = decoded
 
                     val savedFile = saveJpeg(finalBitmap, "IMG_$timestamp.jpg", result.orientation, filmrConfig.jpegQuality, ctx)
                     finalBitmap.recycle()
@@ -612,28 +585,7 @@ class CameraFragment : Fragment() {
                 }
             }
 
-            ImageFormat.JPEG -> {
-                val jpegPlane = result.image.planes[0]
-                val jpegBytes = ByteArray(jpegPlane.buffer.remaining())
-                jpegPlane.buffer.get(jpegBytes)
-                val rawBitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
-                    ?: throw IOException("Failed to decode JPEG image")
-
-                val (finalBitmap, success) = withContext(Dispatchers.IO) {
-                    applyFilmrProcessing(rawBitmap, filmrConfig, ctx)
-                }
-                if (!success && FilmrEngine.isAvailable) {
-                    withContext(Dispatchers.Main) {
-                        showSnackbar("Film simulation failed — saved original")
-                    }
-                }
-                if (finalBitmap !== rawBitmap) rawBitmap.recycle()
-                val savedFile = saveJpeg(finalBitmap, "IMG_$timestamp.jpg", result.orientation, filmrConfig.jpegQuality, ctx)
-                finalBitmap.recycle()
-                savedFile
-            }
-
-            else -> throw RuntimeException("Unknown image format: ${result.format}")
+            else -> throw RuntimeException("Unsupported image format: ${result.format} — only RAW_SENSOR is supported")
         }
     }
 
@@ -643,19 +595,6 @@ class CameraFragment : Fragment() {
         val config = FilmrConfig.load(prefs)
         fragmentCameraBinding.filmInfoText.text =
             "${config.preset.manufacturer.uppercase()} · ${config.preset.displayName}"
-    }
-
-    private fun applyFilmrProcessing(
-        bitmap: Bitmap, config: FilmrConfig? = null, ctx: Context = requireContext()
-    ): Pair<Bitmap, Boolean> {
-        if (!FilmrEngine.isAvailable) return Pair(bitmap, false)
-        val prefs = ctx.getSharedPreferences(FilmrConfig.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
-        val filmrConfig = config ?: FilmrConfig.load(prefs)
-        Log.d(TAG, "Applying filmr: preset=${filmrConfig.preset.key}, style=${filmrConfig.styleKey()}")
-        val modelPath = depthModelPath(filmrConfig, ctx)
-        val (result, error) = FilmrEngine.processChecked(bitmap, filmrConfig, modelPath)
-        if (error != null) Log.e(TAG, "filmr processing error: $error")
-        return Pair(result, error == null)
     }
 
     private fun saveDngBytes(dngBytes: ByteArray, filename: String, ctx: Context = requireContext()) {

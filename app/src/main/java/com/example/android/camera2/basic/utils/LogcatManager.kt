@@ -13,11 +13,13 @@ object LogcatManager {
 
     private var logProcess: Process? = null
     private var activeLogFile: File? = null
+    private var _isLogging = false
 
-    val isLogging: Boolean get() = logProcess?.isAlive == true
+    // Process.isAlive() is API 26+; track state with our own flag instead
+    val isLogging: Boolean get() = _isLogging
 
     fun start(context: Context) {
-        if (isLogging) return
+        if (_isLogging) return
 
         val logDir = File(context.filesDir, LOG_DIR).apply { mkdirs() }
         pruneOldLogs(logDir)
@@ -27,20 +29,31 @@ object LogcatManager {
         activeLogFile = file
 
         val pid = android.os.Process.myPid().toString()
-        logProcess = ProcessBuilder(
+        val process = ProcessBuilder(
             "logcat",
             "--pid=$pid",
             "-v", "time",
             "-b", "all"   // include main, crash, system buffers
         )
-            .redirectOutput(file)
-            .redirectErrorStream(true)
+            .redirectErrorStream(true)  // API 16+ — merge stderr into stdout
             .start()
+        logProcess = process
+        _isLogging = true
+
+        // redirectOutput(File) is API 26+; pipe stdout to file on a daemon thread instead
+        Thread {
+            try {
+                process.inputStream.use { input ->
+                    file.outputStream().use { output -> input.copyTo(output) }
+                }
+            } catch (_: Exception) { /* process destroyed — normal shutdown */ }
+        }.also { it.isDaemon = true; it.name = "filmr-logcat" }.start()
     }
 
     fun stop() {
         logProcess?.destroy()
         logProcess = null
+        _isLogging = false
     }
 
     fun latestLogFile(context: Context): File? {

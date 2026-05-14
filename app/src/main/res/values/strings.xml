@@ -7,4 +7,6 @@
     <string name="filmr_engine_unavailable">Film engine unavailable — libfilmr.so not loaded</string>
     <string name="capture_status_processing">Processing…</string>
     <string name="chromatic_aberration">Chromatic Aberration</string>
+    <string name="grain_amount">Grain Amount</string>
+    <string name="vignette_strength">Vignette Strength</string>
 </resources>

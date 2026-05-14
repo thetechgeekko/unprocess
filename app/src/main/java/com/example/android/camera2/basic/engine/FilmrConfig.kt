@@ -106,7 +106,9 @@ data class FilmrConfig(
     val autoLevels: Boolean = false,
     val lightLeakEnabled: Boolean = false,
     val jpegQuality: Int = 95,
-    val chromaticAberrationStrength: Float = 0.0f
+    val chromaticAberrationStrength: Float = 0.0f,
+    val grainMultiplier: Float = 1.0f,
+    val vignetteMultiplier: Float = 1.0f
 ) {
     /** Serialize to the JSON format expected by Rust SimulationConfig. */
     fun toSimConfigJson(): String {
@@ -152,6 +154,8 @@ data class FilmrConfig(
             put("dof_swirl", dofSwirl.toDouble())
             put("rotational_blur_amount", rotationalBlurAmount.toDouble())
             put("chromatic_aberration_strength", chromaticAberrationStrength.toDouble())
+            put("grain_multiplier", grainMultiplier.toDouble())
+            put("vignette_multiplier", vignetteMultiplier.toDouble())
             toString()
         }
     }
@@ -206,7 +210,9 @@ data class FilmrConfig(
             autoLevels = prefs.getBoolean("auto_levels", false),
             lightLeakEnabled = prefs.getBoolean("light_leak_enabled", false),
             jpegQuality = prefs.getInt("jpeg_quality", 95),
-            chromaticAberrationStrength = prefs.getFloat("chromatic_aberration_strength", 0.0f)
+            chromaticAberrationStrength = prefs.getFloat("chromatic_aberration_strength", 0.0f),
+            grainMultiplier = prefs.getFloat("grain_multiplier", 1.0f),
+            vignetteMultiplier = prefs.getFloat("vignette_multiplier", 1.0f)
         )
 
         fun save(config: FilmrConfig, prefs: SharedPreferences) {
@@ -231,6 +237,8 @@ data class FilmrConfig(
                 putBoolean("light_leak_enabled", config.lightLeakEnabled)
                 putInt("jpeg_quality", config.jpegQuality)
                 putFloat("chromatic_aberration_strength", config.chromaticAberrationStrength)
+                putFloat("grain_multiplier", config.grainMultiplier)
+                putFloat("vignette_multiplier", config.vignetteMultiplier)
             }.apply()
         }
 

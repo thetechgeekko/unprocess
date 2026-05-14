@@ -245,6 +245,18 @@ class SettingsFragment : Fragment() {
             config = config.copy(chromaticAberrationStrength = v)
             "%.2f".format(v)
         }
+        // grain_multiplier  0.0 – 2.0  (seekbar 0-200)
+        setupSeekBar(binding.seekGrainMultiplier, binding.labelGrainMultiplier, 0, 200) { raw ->
+            val v = raw / 100f
+            config = config.copy(grainMultiplier = v)
+            "%.2f".format(v)
+        }
+        // vignette_multiplier  0.0 – 2.0  (seekbar 0-200)
+        setupSeekBar(binding.seekVignetteMultiplier, binding.labelVignetteMultiplier, 0, 200) { raw ->
+            val v = raw / 100f
+            config = config.copy(vignetteMultiplier = v)
+            "%.2f".format(v)
+        }
         // jpeg_quality  60 – 100  (seekbar 0-40, +60)
         setupSeekBar(binding.seekJpegQuality, binding.labelJpegQuality, 0, 40) { raw ->
             val v = raw + 60
@@ -427,6 +439,8 @@ class SettingsFragment : Fragment() {
         binding.seekDofSwirl.progress = (config.dofSwirl * 100).toInt().coerceIn(0, 100)
         binding.seekRotBlur.progress = (config.rotationalBlurAmount * 100).toInt().coerceIn(0, 200)
         binding.seekChromaticAberration.progress = (config.chromaticAberrationStrength * 100).toInt().coerceIn(0, 100)
+        binding.seekGrainMultiplier.progress = (config.grainMultiplier * 100).toInt().coerceIn(0, 200)
+        binding.seekVignetteMultiplier.progress = (config.vignetteMultiplier * 100).toInt().coerceIn(0, 200)
         binding.seekJpegQuality.progress = (config.jpegQuality - 60).coerceIn(0, 40)
 
         binding.labelExposure.text = "%.2f s".format(config.exposureTime)
@@ -440,6 +454,8 @@ class SettingsFragment : Fragment() {
         binding.labelDofSwirl.text = "%.2f".format(config.dofSwirl)
         binding.labelRotBlur.text = "%.2f".format(config.rotationalBlurAmount)
         binding.labelChromaticAberration.text = "%.2f".format(config.chromaticAberrationStrength)
+        binding.labelGrainMultiplier.text = "%.2f".format(config.grainMultiplier)
+        binding.labelVignetteMultiplier.text = "%.2f".format(config.vignetteMultiplier)
         binding.labelJpegQuality.text = "${config.jpegQuality}"
 
         binding.switchGrain.isChecked = config.enableGrain

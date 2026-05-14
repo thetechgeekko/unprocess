@@ -16,6 +16,14 @@
         android:layout_height="match_parent"
         android:foreground="@android:color/transparent" />
 
+    <com.reilandeubank.unprocess.utils.HistogramView
+        android:id="@+id/histogram_view"
+        android:layout_width="96dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|start"
+        android:layout_margin="16dp"
+        android:layout_marginTop="64dp" />
+
     <TextView
         android:id="@+id/filmr_unavailable_banner"
         android:layout_width="match_parent"
@@ -79,6 +87,24 @@
             android:textSize="10sp"
             android:gravity="center"
             android:layout_marginTop="8dp" />
+
+        <!-- Film preset quick-select strip -->
+        <HorizontalScrollView
+            android:id="@+id/preset_scroll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="4dp">
+            <LinearLayout
+                android:id="@+id/preset_chip_container"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:divider="@android:drawable/divider_horizontal_bright"
+                android:showDividers="none" />
+        </HorizontalScrollView>
 
     </LinearLayout>
 
